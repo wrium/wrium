@@ -15,10 +15,22 @@ import { evalExp } from './expression.js';
 import { registerDirective } from './directives.js';
 
 /**
+ * @typedef {Object} WriumPlugin
+ * @property {(api: Object, options?: Object) => void} install
+ */
+
+/**
+ * @typedef {Object} App
+ * @property {(plugin: WriumPlugin, options?: Object) => App} use - Install a plugin
+ * @property {(root: string | Element) => App} mount - Mount to a DOM element
+ * @property {() => void} unmount - Clean up all effects and listeners
+ */
+
+/**
  * Create a Wrium application
  *
- * @param {Function} setup - Setup function that returns reactive data
- * @returns {Object} App instance with mount(), unmount(), and use() methods
+ * @param {() => Object} setup - Setup function that returns reactive data
+ * @returns {App} App instance with mount(), unmount(), and use() methods
  *
  * @example
  * const app = createApp(() => ({
