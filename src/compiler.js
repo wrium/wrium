@@ -271,6 +271,10 @@ export const compile = (el, scope, cs) => {
                     itemRef = null;
                 } else {
                     itemRef = ref(val);
+                    // Marks this ref as v-for's own bookkeeping box, not a
+                    // user-declared ref - see the event-handler unwrap logic
+                    // above for why that distinction matters.
+                    itemRef._isVForItem = true;
                     itemValue = itemRef;
                 }
 
@@ -350,13 +354,17 @@ export const compile = (el, scope, cs) => {
                     try {
                         const keys = Object.keys(scope);
                         // Object-valued refs unwrap (mutating .name etc. works,
-                        // since objects are shared by reference); primitive
-                        // refs stay boxed - `count.value++` still needs
-                        // .value, since a bare number can't carry the write
-                        // back to the ref.
+                        // since objects are shared by reference), and so do
+                        // v-for's own primitive item refs (they're internal
+                        // bookkeeping to keep the binding live across renders -
+                        // never meant to be reassigned via this variable, so
+                        // there's nothing lost by handing out the raw value).
+                        // A user-declared primitive ref stays boxed:
+                        // `count.value++` still needs .value, since a bare
+                        // number can't carry the write back to the ref.
                         const vals = keys.map(k => {
                             const v = scope[k];
-                            return v?._isRef && isObj(v.value) ? v.value : v;
+                            return v?._isRef && (isObj(v.value) || v._isVForItem) ? v.value : v;
                         });
                         Function(...keys, 'e', `"use strict";${value}`)(...vals, e);
                     } catch (err) {
