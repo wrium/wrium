@@ -447,18 +447,7 @@ Requires ES6 Proxy support:
 
 ## Project Status
 
-Wrium (formerly Zog.js) is pre-v1 and under active development - the API can still change. Current focus areas:
-
-- ✅ Modular source (`src/core`, `src/compiler.js`, `src/directives.js`, ...) instead of a single file
-- ✅ `v-` directive prefix (was `z-`)
-- ✅ `ref()` accepts any value, matching Vue's semantics (objects/arrays are wrapped via `reactive()`)
-- ✅ Directive registry so plugins can add real `v-xxx` directives, not just compile hooks
-- ✅ Event modifiers (`.prevent`, `.stop`, `.once`, `.self`, `.capture`, `.passive`, key modifiers)
-- ✅ `v-html` moved out of core into an opt-in plugin
-- ✅ Object-valued refs mutate directly in event handlers, no `.value` needed for nested access (only for reassigning the ref itself)
-- ✅ `:class` array syntax (`:class="[base, { active }]"`), matching Vue
-- ✅ Real TypeScript declarations generated from JSDoc (`npm run build:types`, zero runtime cost) - see `tsconfig.json`
-- ⏳ Bundle size budget (target: ≤10KB minified for the core build - currently ~9.9KB, still within budget)
+Wrium (formerly Zog.js) just shipped v1.0.0 - see [CHANGELOG.md](./CHANGELOG.md) for what changed on the way here, including a couple of known limitations still open (global plugin registry, no browser test coverage yet).
 
 ## License
 
