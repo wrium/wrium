@@ -181,11 +181,17 @@ describe('Edge Cases and Bug Detection', () => {
             expect(divs[0].textContent).toBe('1');
         });
 
-        it('should handle incrementing primitive values in v-for', async () => {
+        it('should update the source array when incrementing a primitive v-for item by index (Vue-style)', async () => {
+            // v-for primitive items are a transient per-render box (needed so
+            // the binding stays live across re-renders) - they were never
+            // meaningfully mutable through the item variable itself, since
+            // that never wrote back to the source array (matches Vue: a
+            // v-for item isn't its own reactive cell, the source array is).
+            // The correct pattern is to mutate the source array by index.
             container.innerHTML = `
-                <div v-for="num in numbers">
+                <div v-for="(num, index) in numbers">
                     <span>{{ num }}</span>
-                    <button @click="num.value++">++</button>
+                    <button @click="numbers[index]++">++</button>
                 </div>
             `;
             let numbers;
@@ -197,13 +203,29 @@ describe('Edge Cases and Bug Detection', () => {
 
             const button = container.querySelector('button');
             const span = container.querySelector('span');
-            
+
             expect(span.textContent).toBe('1');
             button.click();
             await new Promise(resolve => setTimeout(resolve, 0));
-            
-            // For primitive values, we need .value
+
             expect(span.textContent).toBe('2');
+            expect(numbers[0]).toBe(2);
+        });
+
+        it('should pass a v-for primitive item to a function as its raw value, not a ref box', () => {
+            container.innerHTML = `
+                <div v-for="num in numbers">
+                    <button @click="record(num)">{{ num }}</button>
+                </div>
+            `;
+            const received = [];
+            const app = createApp(() => ({
+                numbers: reactive([1, 2, 3]),
+                record: v => received.push(v)
+            }));
+            app.mount(container);
+            container.querySelectorAll('button').forEach(b => b.click());
+            expect(received).toEqual([1, 2, 3]);
         });
     });
 
