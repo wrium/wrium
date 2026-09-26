@@ -10,6 +10,14 @@ import { isObj } from '../utils.js';
 import { reactive } from './reactive.js';
 
 /**
+ * @template T
+ * @typedef {Object} Ref
+ * @property {T} value - The current value (reactive if T is an object/array)
+ * @property {true} _isRef - Marker used by evalExp for auto-unwrapping
+ * @property {() => string} toString
+ */
+
+/**
  * Create a reactive reference to any value.
  *
  * - Primitive values (string, number, boolean, null, undefined) are tracked
@@ -17,8 +25,9 @@ import { reactive } from './reactive.js';
  * - Objects and arrays are wrapped with reactive() - `.value` returns the
  *   reactive proxy, so nested property access/mutation is reactive too.
  *
- * @param {*} val - The initial value
- * @returns {Object} A ref object with a reactive .value property
+ * @template T
+ * @param {T} val - The initial value
+ * @returns {Ref<T>} A ref object with a reactive .value property
  *
  * @example
  * const count = ref(0);
