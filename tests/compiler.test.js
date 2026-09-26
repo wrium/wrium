@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { createApp, ref, reactive, computed } from '../src/wrium.js';
+import { HtmlPlugin } from '../src/plugins/html.js';
 
 describe('Compiler and Directives', () => {
     let dom;
@@ -91,9 +92,9 @@ describe('Compiler and Directives', () => {
         });
     });
 
-    describe('z-text directive', () => {
+    describe('v-text directive', () => {
         it('should set text content', () => {
-            container.innerHTML = '<div z-text="message"></div>';
+            container.innerHTML = '<div v-text="message"></div>';
             const app = createApp(() => {
                 const message = ref('Hello');
                 return { message };
@@ -103,7 +104,7 @@ describe('Compiler and Directives', () => {
         });
 
         it('should update when value changes', async () => {
-            container.innerHTML = '<div z-text="message"></div>';
+            container.innerHTML = '<div v-text="message"></div>';
             let message;
             const app = createApp(() => {
                 message = ref('Hello');
@@ -116,21 +117,35 @@ describe('Compiler and Directives', () => {
         });
     });
 
-    describe('z-html directive', () => {
+    describe('v-html directive (HtmlPlugin)', () => {
         it('should set innerHTML', () => {
-            container.innerHTML = '<div z-html="html"></div>';
+            container.innerHTML = '<div v-html="html"></div>';
             const app = createApp(() => {
                 const html = ref('<strong>Bold</strong>');
                 return { html };
             });
+            app.use(HtmlPlugin);
             app.mount(container);
             expect(container.querySelector('div').innerHTML).toBe('<strong>Bold</strong>');
         });
+
+        it('should report onError for an unregistered directive', () => {
+            // A made-up directive name, guaranteed never registered by any plugin
+            container.innerHTML = '<div v-totally-unregistered-xyz="html"></div>';
+            const app = createApp(() => {
+                const html = ref('<strong>Bold</strong>');
+                return { html };
+            });
+            const onError = vi.fn();
+            app.use({ install: api => api.onHook('onError', onError) });
+            app.mount(container);
+            expect(onError).toHaveBeenCalled();
+        });
     });
 
-    describe('z-show directive', () => {
+    describe('v-show directive', () => {
         it('should show element when true', () => {
-            container.innerHTML = '<div z-show="visible">Content</div>';
+            container.innerHTML = '<div v-show="visible">Content</div>';
             const app = createApp(() => {
                 const visible = ref(true);
                 return { visible };
@@ -140,7 +155,7 @@ describe('Compiler and Directives', () => {
         });
 
         it('should hide element when false', () => {
-            container.innerHTML = '<div z-show="visible">Content</div>';
+            container.innerHTML = '<div v-show="visible">Content</div>';
             const app = createApp(() => {
                 const visible = ref(false);
                 return { visible };
@@ -150,7 +165,7 @@ describe('Compiler and Directives', () => {
         });
 
         it('should toggle visibility', async () => {
-            container.innerHTML = '<div z-show="visible">Content</div>';
+            container.innerHTML = '<div v-show="visible">Content</div>';
             let visible;
             const app = createApp(() => {
                 visible = ref(true);
@@ -164,10 +179,10 @@ describe('Compiler and Directives', () => {
         });
     });
 
-    describe('z-if / z-else-if / z-else directives', () => {
-        it('should render z-if when true', () => {
+    describe('v-if / v-else-if / v-else directives', () => {
+        it('should render v-if when true', () => {
             container.innerHTML = `
-                <div z-if="show">Visible</div>
+                <div v-if="show">Visible</div>
             `;
             const app = createApp(() => {
                 const show = ref(true);
@@ -177,9 +192,9 @@ describe('Compiler and Directives', () => {
             expect(container.textContent.trim()).toBe('Visible');
         });
 
-        it('should not render z-if when false', () => {
+        it('should not render v-if when false', () => {
             container.innerHTML = `
-                <div z-if="show">Visible</div>
+                <div v-if="show">Visible</div>
             `;
             const app = createApp(() => {
                 const show = ref(false);
@@ -189,9 +204,9 @@ describe('Compiler and Directives', () => {
             expect(container.textContent.trim()).toBe('');
         });
 
-        it('should toggle z-if', async () => {
+        it('should toggle v-if', async () => {
             container.innerHTML = `
-                <div z-if="show">Visible</div>
+                <div v-if="show">Visible</div>
             `;
             let show;
             const app = createApp(() => {
@@ -205,10 +220,10 @@ describe('Compiler and Directives', () => {
             expect(container.textContent.trim()).toBe('');
         });
 
-        it('should work with z-else', async () => {
+        it('should work with v-else', async () => {
             container.innerHTML = `
-                <div z-if="show">True</div>
-                <div z-else>False</div>
+                <div v-if="show">True</div>
+                <div v-else>False</div>
             `;
             let show;
             const app = createApp(() => {
@@ -222,11 +237,11 @@ describe('Compiler and Directives', () => {
             expect(container.textContent.trim()).toBe('False');
         });
 
-        it('should work with z-else-if', async () => {
+        it('should work with v-else-if', async () => {
             container.innerHTML = `
-                <div z-if="type === 'A'">A</div>
-                <div z-else-if="type === 'B'">B</div>
-                <div z-else>C</div>
+                <div v-if="type === 'A'">A</div>
+                <div v-else-if="type === 'B'">B</div>
+                <div v-else>C</div>
             `;
             let type;
             const app = createApp(() => {
@@ -244,10 +259,10 @@ describe('Compiler and Directives', () => {
         });
     });
 
-    describe('z-for directive', () => {
+    describe('v-for directive', () => {
         it('should render list with reactive array', () => {
             container.innerHTML = `
-                <div z-for="item in items">{{ item }}</div>
+                <div v-for="item in items">{{ item }}</div>
             `;
             const app = createApp(() => {
                 const items = reactive([1, 2, 3]);
@@ -263,7 +278,7 @@ describe('Compiler and Directives', () => {
 
         it('should update when array changes', async () => {
             container.innerHTML = `
-                <div z-for="item in items">{{ item }}</div>
+                <div v-for="item in items">{{ item }}</div>
             `;
             let items;
             const app = createApp(() => {
@@ -279,7 +294,7 @@ describe('Compiler and Directives', () => {
 
         it('should work with (item, index) syntax', () => {
             container.innerHTML = `
-                <div z-for="(item, index) in items">{{ index }}: {{ item }}</div>
+                <div v-for="(item, index) in items">{{ index }}: {{ item }}</div>
             `;
             const app = createApp(() => {
                 const items = reactive(['a', 'b', 'c']);
@@ -294,7 +309,7 @@ describe('Compiler and Directives', () => {
 
         it('should work with reactive objects in array', async () => {
             container.innerHTML = `
-                <div z-for="user in users">{{ user.name }}</div>
+                <div v-for="user in users">{{ user.name }}</div>
             `;
             let users;
             const app = createApp(() => {
@@ -315,7 +330,7 @@ describe('Compiler and Directives', () => {
 
         it('should handle array mutations', async () => {
             container.innerHTML = `
-                <div z-for="item in items">{{ item }}</div>
+                <div v-for="item in items">{{ item }}</div>
             `;
             let items;
             const app = createApp(() => {
@@ -336,7 +351,7 @@ describe('Compiler and Directives', () => {
 
         it('should work with :key attribute', async () => {
             container.innerHTML = `
-                <div z-for="user in users" :key="user.id">{{ user.name }}</div>
+                <div v-for="user in users" :key="user.id">{{ user.name }}</div>
             `;
             let users;
             const app = createApp(() => {
@@ -360,7 +375,7 @@ describe('Compiler and Directives', () => {
 
         it('should handle empty array', () => {
             container.innerHTML = `
-                <div z-for="item in items">{{ item }}</div>
+                <div v-for="item in items">{{ item }}</div>
             `;
             const app = createApp(() => {
                 const items = reactive([]);
@@ -371,9 +386,9 @@ describe('Compiler and Directives', () => {
         });
     });
 
-    describe('z-model directive', () => {
+    describe('v-model directive', () => {
         it('should bind input value', () => {
-            container.innerHTML = '<input z-model="text">';
+            container.innerHTML = '<input v-model="text">';
             const app = createApp(() => {
                 const text = ref('Hello');
                 return { text };
@@ -383,7 +398,7 @@ describe('Compiler and Directives', () => {
         });
 
         it('should update on input', async () => {
-            container.innerHTML = '<input z-model="text">';
+            container.innerHTML = '<input v-model="text">';
             let text;
             const app = createApp(() => {
                 text = ref('Hello');
@@ -398,7 +413,7 @@ describe('Compiler and Directives', () => {
         });
 
         it('should work with checkbox', () => {
-            container.innerHTML = '<input type="checkbox" z-model="checked">';
+            container.innerHTML = '<input type="checkbox" v-model="checked">';
             const app = createApp(() => {
                 const checked = ref(true);
                 return { checked };
@@ -408,7 +423,7 @@ describe('Compiler and Directives', () => {
         });
 
         it('should update checkbox on change', async () => {
-            container.innerHTML = '<input type="checkbox" z-model="checked">';
+            container.innerHTML = '<input type="checkbox" v-model="checked">';
             let checked;
             const app = createApp(() => {
                 checked = ref(false);
@@ -423,7 +438,7 @@ describe('Compiler and Directives', () => {
         });
 
         it('should work with reactive object properties', async () => {
-            container.innerHTML = '<input z-model="user.name">';
+            container.innerHTML = '<input v-model="user.name">';
             let user;
             const app = createApp(() => {
                 user = reactive({ name: 'Ali' });
@@ -496,9 +511,96 @@ describe('Compiler and Directives', () => {
         });
     });
 
+    describe('Event Modifiers (@event.modifier)', () => {
+        it('should support v-on: as a long-form alias for @', () => {
+            container.innerHTML = '<button v-on:click="increment">Click</button>';
+            let count;
+            const app = createApp(() => {
+                count = ref(0);
+                const increment = () => count.value++;
+                return { count, increment };
+            });
+            app.mount(container);
+            container.querySelector('button').click();
+            expect(count.value).toBe(1);
+        });
+
+        it('.prevent should call preventDefault', () => {
+            container.innerHTML = '<a href="#" @click.prevent="noop">Link</a>';
+            const app = createApp(() => ({ noop: () => {} }));
+            app.mount(container);
+            const link = container.querySelector('a');
+            const ev = new dom.window.MouseEvent('click', { cancelable: true, bubbles: true });
+            link.dispatchEvent(ev);
+            expect(ev.defaultPrevented).toBe(true);
+        });
+
+        it('.stop should call stopPropagation', () => {
+            container.innerHTML = '<div id="outer"><button @click.stop="noop">Click</button></div>';
+            let outerClicks = 0;
+            const app = createApp(() => ({ noop: () => {} }));
+            app.mount(container);
+            container.querySelector('#outer').addEventListener('click', () => outerClicks++);
+            container.querySelector('button').click();
+            expect(outerClicks).toBe(0);
+        });
+
+        it('.once should only trigger the handler once', () => {
+            container.innerHTML = '<button @click.once="increment">Click</button>';
+            let count;
+            const app = createApp(() => {
+                count = ref(0);
+                const increment = () => count.value++;
+                return { count, increment };
+            });
+            app.mount(container);
+            const button = container.querySelector('button');
+            button.click();
+            button.click();
+            expect(count.value).toBe(1);
+        });
+
+        it('.self should ignore events bubbled from children', () => {
+            container.innerHTML = '<div @click.self="increment"><span>child</span></div>';
+            let count;
+            const app = createApp(() => {
+                count = ref(0);
+                const increment = () => count.value++;
+                return { count, increment };
+            });
+            app.mount(container);
+            container.querySelector('span').click();
+            expect(count.value).toBe(0);
+            container.querySelector('div').click();
+            expect(count.value).toBe(1);
+        });
+
+        it('key modifiers (e.g. .enter) should filter by e.key', () => {
+            container.innerHTML = '<input @keyup.enter="submit" />';
+            let submitted = 0;
+            const app = createApp(() => ({ submit: () => submitted++ }));
+            app.mount(container);
+            const input = container.querySelector('input');
+            input.dispatchEvent(new dom.window.KeyboardEvent('keyup', { key: 'a' }));
+            expect(submitted).toBe(0);
+            input.dispatchEvent(new dom.window.KeyboardEvent('keyup', { key: 'Enter' }));
+            expect(submitted).toBe(1);
+        });
+    });
+
     describe('Attribute Binding (:attr)', () => {
         it('should bind attributes', () => {
             container.innerHTML = '<div :id="divId"></div>';
+            const app = createApp(() => {
+                const divId = ref('myDiv');
+                return { divId };
+            });
+            app.mount(container);
+            expect(container.querySelector('div').id).toBe('myDiv');
+        });
+
+        it('should support v-bind: as a long-form alias for :', () => {
+            container.innerHTML = '<div v-bind:id="divId"></div>';
             const app = createApp(() => {
                 const divId = ref('myDiv');
                 return { divId };

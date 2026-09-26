@@ -3,15 +3,21 @@
  * =================
  * Compiles DOM elements with directives into reactive components.
  *
+ * Structural directives (v-if/v-for) clone/remove template nodes and stay
+ * hardcoded here. Everything else - v-model, v-show, v-text, and anything a
+ * plugin adds - is dispatched through the directive registry (directives.js),
+ * so built-ins have no special privilege over plugin-provided directives.
+ *
  * Supported directives:
- * - {{ expression }}     - Text interpolation
- * - z-if / z-else-if / z-else - Conditional rendering
- * - z-for="(item, index) in array" - List rendering
- * - z-model              - Two-way binding
- * - z-show               - Toggle display
- * - z-text / z-html      - Content binding
- * - :attr or z-bind:attr - Attribute binding
- * - @event or z-on:event - Event handling
+ * - {{ expression }}       - Text interpolation
+ * - v-if / v-else-if / v-else - Conditional rendering
+ * - v-for="(item, index) in array" - List rendering
+ * - v-model                - Two-way binding (registry)
+ * - v-show / v-text         - Registry directives
+ * - :attr or v-bind:attr   - Attribute binding
+ * - @event or v-on:event   - Event handling, with .prevent/.stop/.once/
+ *                             .self/.capture/.passive and key modifiers
+ *                             (e.g. .enter matches e.key === 'Enter')
  */
 import { runHooks } from './hooks.js';
 import { watchEffect } from './core/effect.js';
@@ -20,6 +26,11 @@ import { Scope } from './scope.js';
 import { ref } from './core/ref.js';
 import { reactive, IS_REACTIVE } from './core/reactive.js';
 import { isObj } from './utils.js';
+import { getDirective } from './directives.js';
+import './core-directives.js';
+
+/** Event modifiers handled structurally (not treated as key filters) */
+const STRUCTURAL_MODS = new Set(['prevent', 'stop', 'once', 'self', 'capture', 'passive']);
 
 /**
  * Compile a DOM element and its children
@@ -75,27 +86,27 @@ export const compile = (el, scope, cs) => {
     if (el.nodeType !== 1) return;
 
     // -------------------------------------------------------------------------
-    // Z-IF - Conditional rendering
+    // V-IF - Conditional rendering
     // -------------------------------------------------------------------------
-    // Supports: z-if, z-else-if, z-else
+    // Supports: v-if, v-else-if, v-else
     // Elements must be adjacent siblings
     // Each branch gets its own scope (created when shown, cleaned up when hidden)
     // -------------------------------------------------------------------------
-    if (el.hasAttribute('z-if')) {
+    if (el.hasAttribute('v-if')) {
         const branches = [];
         const parent = el.parentNode;
         if (!parent) return;
 
         // Create placeholder comment for insertion point
-        const ph = document.createComment('z-if');
+        const ph = document.createComment('v-if');
         parent.insertBefore(ph, el);
 
-        // Collect all branches (z-if, z-else-if, z-else)
+        // Collect all branches (v-if, v-else-if, v-else)
         let curr = el;
         while (curr) {
             const type = curr && (branches.length === 0
-                ? curr.hasAttribute('z-if') && 'z-if'
-                : ['z-else-if', 'z-else'].find(t => curr.hasAttribute(t))
+                ? curr.hasAttribute('v-if') && 'v-if'
+                : ['v-else-if', 'v-else'].find(t => curr.hasAttribute(t))
             );
             if (!type) break;
 
@@ -105,8 +116,8 @@ export const compile = (el, scope, cs) => {
             // Store template and metadata
             branches.push({
                 template: curr.cloneNode(true),
-                exp,      // Condition expression (null for z-else)
-                type,     // 'z-if', 'z-else-if', or 'z-else'
+                exp,      // Condition expression (null for v-else)
+                type,     // 'v-if', 'v-else-if', or 'v-else'
                 el: null, // Current DOM element (when rendered)
                 scope: null // Current scope (when rendered)
             });
@@ -121,7 +132,7 @@ export const compile = (el, scope, cs) => {
             // Find first matching branch
             let chosen = null;
             for (const b of branches) {
-                if (b.type === 'z-else' || evalExp(b.exp, scope)) {
+                if (b.type === 'v-else' || evalExp(b.exp, scope)) {
                     chosen = b;
                     break;
                 }
@@ -153,25 +164,25 @@ export const compile = (el, scope, cs) => {
         return;
     }
 
-    // Skip orphaned else branches (already processed with their z-if)
-    if (el.hasAttribute('z-else-if') || el.hasAttribute('z-else')) return;
+    // Skip orphaned else branches (already processed with their v-if)
+    if (el.hasAttribute('v-else-if') || el.hasAttribute('v-else')) return;
 
     // -------------------------------------------------------------------------
-    // Z-FOR - List rendering
+    // V-FOR - List rendering
     // -------------------------------------------------------------------------
-    // Syntax: z-for="item in items"
-    //         z-for="(item, index) in items"
+    // Syntax: v-for="item in items"
+    //         v-for="(item, index) in items"
     //
-    // Key attribute (:key or z-key) recommended for efficient updates
+    // :key recommended for efficient updates
     // Each item gets its own scope with item and index variables
     // Objects are automatically wrapped in reactive()
     // Primitives are wrapped in ref() (auto-unwrapped in templates)
     // Index is a plain number that updates when array changes
     // -------------------------------------------------------------------------
-    if (el.hasAttribute('z-for')) {
-        const rawFor = el.getAttribute('z-for');
+    if (el.hasAttribute('v-for')) {
+        const rawFor = el.getAttribute('v-for');
 
-        // Parse z-for expression: "(item, index) in items" or "item in items"
+        // Parse v-for expression: "(item, index) in items" or "item in items"
         const m = rawFor.match(/^\s*(?:\((\w+)\s*,\s*(\w+)\)|(\w+))\s+(?:in|of)\s+(.*)$/);
         const itemName = m?.[1] || m?.[3] || 'item';
         const indexName = m?.[2] || 'index';
@@ -181,17 +192,14 @@ export const compile = (el, scope, cs) => {
         if (!parent) return;
 
         // Create placeholder and remove template element
-        const ph = document.createComment('z-for');
+        const ph = document.createComment('v-for');
         parent.insertBefore(ph, el);
         el.remove();
-        el.removeAttribute('z-for');
+        el.removeAttribute('v-for');
 
         // Get key attribute for efficient diffing
-        const keyAttr = el.getAttribute(':key') || el.getAttribute('z-key');
-        if (keyAttr) {
-            el.removeAttribute(':key');
-            el.removeAttribute('z-key');
-        }
+        const keyAttr = el.getAttribute(':key');
+        if (keyAttr) el.removeAttribute(':key');
 
         // Map of key -> { clone, scope, itemValue, itemRef }
         let itemsMap = new Map();
@@ -294,17 +302,34 @@ export const compile = (el, scope, cs) => {
     for (const { name, value } of [...el.attributes]) {
 
         // ---------------------------------------------------------------------
-        // EVENT BINDING: @event or z-on:event
+        // EVENT BINDING: @event or v-on:event, with dot modifiers
         // ---------------------------------------------------------------------
-        // Examples: @click="handler" @input="count++" z-on:submit="save"
+        // Examples: @click="handler"  @click.prevent.self="handler"
+        //           v-on:submit.prevent="save"  @keyup.enter="submit"
         // Handler can be a method name or inline expression
         // Event object available as 'e' in inline expressions
+        //
+        // Modifiers: .prevent .stop .once .self .capture .passive are
+        // structural. Any other modifier is treated as a key filter and
+        // matched against e.key (lowercased), e.g. .enter matches "Enter".
         // ---------------------------------------------------------------------
-        if (name.startsWith('@') || name.startsWith('z-on:')) {
-            const ev = name[0] === '@' ? name.slice(1) : name.slice(5);
+        if (name.startsWith('@') || name.startsWith('v-on:')) {
+            const raw = name[0] === '@' ? name.slice(1) : name.slice(5);
+            const [ev, ...mods] = raw.split('.');
             el.removeAttribute(name);
 
+            const keyMods = mods.filter(m => !STRUCTURAL_MODS.has(m));
+            const opts = {};
+            if (mods.includes('capture')) opts.capture = true;
+            if (mods.includes('passive')) opts.passive = true;
+            if (mods.includes('once')) opts.once = true;
+
             const fn = e => {
+                if (mods.includes('self') && e.target !== el) return;
+                if (keyMods.length && !keyMods.some(m => e.key?.toLowerCase() === m)) return;
+                if (mods.includes('prevent')) e.preventDefault();
+                if (mods.includes('stop')) e.stopPropagation();
+
                 // If value is a function name in scope, call it
                 if (typeof scope[value] === 'function') {
                     scope[value](e);
@@ -321,62 +346,19 @@ export const compile = (el, scope, cs) => {
                 }
             };
 
-            el.addEventListener(ev, fn);
-            cs.addListener(el, ev, fn);
+            el.addEventListener(ev, fn, opts);
+            cs.addListener(el, ev, fn, opts.capture);
         }
 
         // ---------------------------------------------------------------------
-        // TWO-WAY BINDING: z-model
+        // ATTRIBUTE BINDING: :attr or v-bind:attr
         // ---------------------------------------------------------------------
-        // Binds input value to a reactive variable
-        // Supports: text inputs, checkboxes, radio buttons, select
-        // ---------------------------------------------------------------------
-        else if (name === 'z-model') {
-            el.removeAttribute(name);
-
-            const isCheck = el.type === 'checkbox' || el.type === 'radio';
-            const prop = isCheck ? 'checked' : 'value';
-            const ev = isCheck || el.tagName === 'SELECT' ? 'change' : 'input';
-
-            // Update model when input changes
-            const fn = () => {
-                if (el.type === 'radio' && !el.checked) return;
-                const val = el.type === 'radio' ? el.value : el[prop];
-
-                if (scope[value]?._isRef) {
-                    scope[value].value = val;
-                } else {
-                    evalExp(value + '=_v', { ...scope, _v: val });
-                }
-            };
-
-            el.addEventListener(ev, fn);
-            cs.addListener(el, ev, fn);
-
-            // Update input when model changes
-            cs.addEffect(watchEffect(() => {
-                const res = evalExp(value, scope);
-                if (el.type === 'radio') {
-                    el.checked = String(el.value) === String(res);
-                } else {
-                    el[prop] = res;
-                }
-            }));
-        }
-
-        // ---------------------------------------------------------------------
-        // ATTRIBUTE/DIRECTIVE BINDING
-        // ---------------------------------------------------------------------
-        // z-text="exp"  - Set textContent
-        // z-html="exp"  - Set innerHTML (caution: XSS risk)
-        // z-show="exp"  - Toggle display:none
         // :attr="exp"   - Bind any attribute
         // :class="obj"  - Object syntax for classes { active: isActive }
         // :style="obj"  - Object syntax for styles { color: 'red' }
         // ---------------------------------------------------------------------
-        else if (name === 'z-text' || name === 'z-html' || name === 'z-show' ||
-            name.startsWith(':') || name.startsWith('z-')) {
-            const attr = name[0] === ':' ? name.slice(1) : name;
+        else if (name.startsWith(':') || name.startsWith('v-bind:')) {
+            const attr = name[0] === ':' ? name.slice(1) : name.slice(7);
             el.removeAttribute(name);
 
             // Preserve static classes for merging
@@ -385,19 +367,7 @@ export const compile = (el, scope, cs) => {
             cs.addEffect(watchEffect(() => {
                 const res = evalExp(value, scope);
 
-                if (attr === 'z-text') {
-                    // Set text content (safe, no HTML)
-                    el.textContent = res ?? '';
-                }
-                else if (attr === 'z-html') {
-                    // Set HTML content (use with caution)
-                    el.innerHTML = res ?? '';
-                }
-                else if (attr === 'z-show') {
-                    // Toggle visibility
-                    el.style.display = res ? '' : 'none';
-                }
-                else if (attr === 'style' && isObj(res)) {
+                if (attr === 'style' && isObj(res)) {
                     // Object style binding: :style="{ color: 'red' }"
                     Object.assign(el.style, res);
                 }
@@ -412,18 +382,36 @@ export const compile = (el, scope, cs) => {
                 }
                 else {
                     // Generic attribute binding
-                    const setName = attr.startsWith('z-') ? attr.slice(2) : attr;
-
                     if (typeof res === 'boolean') {
                         // Boolean attributes: :disabled="isDisabled"
-                        res ? el.setAttribute(setName, '') : el.removeAttribute(setName);
+                        res ? el.setAttribute(attr, '') : el.removeAttribute(attr);
                     } else if (res == null) {
-                        el.removeAttribute(setName);
+                        el.removeAttribute(attr);
                     } else {
-                        el.setAttribute(setName, res);
+                        el.setAttribute(attr, res);
                     }
                 }
             }));
+        }
+
+        // ---------------------------------------------------------------------
+        // NAMED DIRECTIVES: v-xxx (registry lookup)
+        // ---------------------------------------------------------------------
+        // v-model, v-show, v-text are built in (core-directives.js); anything
+        // else (e.g. v-html) is only available if a plugin registered it via
+        // api.directive(name, handler).
+        // ---------------------------------------------------------------------
+        else if (name.startsWith('v-')) {
+            const dirName = name.slice(2);
+            el.removeAttribute(name);
+
+            const handler = getDirective(dirName);
+            if (handler) {
+                handler(el, value, { scope, cs, evalExp, watchEffect, ref, reactive });
+            } else {
+                console.error?.(`Unknown directive: v-${dirName}`);
+                runHooks('onError', new Error(`Unknown directive: v-${dirName}`), 'compile', { el, name });
+            }
         }
     }
 

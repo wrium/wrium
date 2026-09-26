@@ -21,22 +21,34 @@ describe('Reactivity System', () => {
             expect(dummy).toBe(1);
         });
 
-        it('should throw error when passed an object', () => {
-            expect(() => ref({ name: 'test' })).toThrow();
+        it('should wrap an object value with reactive()', () => {
+            const user = ref({ name: 'test' });
+            expect(user.value.name).toBe('test');
+            let dummy;
+            watchEffect(() => { dummy = user.value.name; });
+            user.value.name = 'changed';
+            return nextTick().then(() => expect(dummy).toBe('changed'));
         });
 
-        it('should throw error when passed an array', () => {
-            expect(() => ref([1, 2, 3])).toThrow();
+        it('should wrap an array value with reactive()', () => {
+            const list = ref([1, 2, 3]);
+            expect(list.value.length).toBe(3);
+            let dummy;
+            watchEffect(() => { dummy = list.value.length; });
+            list.value.push(4);
+            return nextTick().then(() => expect(dummy).toBe(4));
         });
 
-        it('should throw error when setting value to object', () => {
+        it('should re-wrap a new object assigned to .value', () => {
             const count = ref(0);
-            expect(() => { count.value = { x: 1 }; }).toThrow();
+            count.value = { x: 1 };
+            expect(count.value.x).toBe(1);
         });
 
-        it('should throw error when setting value to array', () => {
+        it('should re-wrap a new array assigned to .value', () => {
             const count = ref(0);
-            expect(() => { count.value = [1, 2]; }).toThrow();
+            count.value = [1, 2];
+            expect(count.value).toEqual([1, 2]);
         });
 
         it('should work with string values', () => {
@@ -492,12 +504,12 @@ describe('Reactivity System', () => {
 });
 
 
-describe('z-model with Radio Buttons', () => {
+describe('v-model with Radio Buttons', () => {
     it('should bind radio button value correctly', async () => {
         document.body.innerHTML = `
-           <div id="app"> <input type="radio" name="color" value="red" z-model="selected">
-            <input type="radio" name="color" value="green" z-model="selected">
-            <input type="radio" name="color" value="blue" z-model="selected">
+           <div id="app"> <input type="radio" name="color" value="red" v-model="selected">
+            <input type="radio" name="color" value="green" v-model="selected">
+            <input type="radio" name="color" value="blue" v-model="selected">
             <span class="result">{{ selected }}</span></div>
         `;
 
@@ -539,9 +551,9 @@ describe('z-model with Radio Buttons', () => {
     it('should update radio when ref changes programmatically', async () => {
         document.body.innerHTML = `
             <div id="app">
-                <input type="radio" name="size" value="sm" z-model="size">
-                <input type="radio" name="size" value="md" z-model="size">
-                <input type="radio" name="size" value="lg" z-model="size">
+                <input type="radio" name="size" value="sm" v-model="size">
+                <input type="radio" name="size" value="md" v-model="size">
+                <input type="radio" name="size" value="lg" v-model="size">
             </div>
         `;
 

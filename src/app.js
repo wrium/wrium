@@ -12,6 +12,7 @@ import { computed } from './core/computed.js';
 import { watchEffect } from './core/effect.js';
 import { onHook, runHooks } from './hooks.js';
 import { evalExp } from './expression.js';
+import { registerDirective } from './directives.js';
 
 /**
  * Create a Wrium application
@@ -44,7 +45,9 @@ export const createApp = setup => {
          * @example
          * const myPlugin = {
          *   install(api, options) {
-         *     api.onHook('beforeCompile', (el) => { ... });
+         *     api.directive('html', (el, exp, { scope, cs, watchEffect, evalExp }) => {
+         *       cs.addEffect(watchEffect(() => { el.innerHTML = evalExp(exp, scope) ?? ''; }));
+         *     });
          *   }
          * };
          * app.use(myPlugin, { debug: true });
@@ -60,7 +63,8 @@ export const createApp = setup => {
             plugin.install({
                 app: this,
                 reactive, ref, computed, watchEffect,
-                onHook, compile, Scope, evalExp
+                onHook, compile, Scope, evalExp,
+                directive: registerDirective
             }, options);
 
             appContext.plugins.add(plugin);

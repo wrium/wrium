@@ -1,7 +1,7 @@
 /**
  * Scope - Manages lifecycle of a reactive region
  * Tracks effects, event listeners, and child scopes for proper cleanup.
- * Each z-if branch and z-for item gets its own scope.
+ * Each v-if branch and v-for item gets its own scope.
  */
 export class Scope {
     /**
@@ -11,7 +11,7 @@ export class Scope {
         this.data = data;       // Reactive data object
         this.effects = [];      // Stop functions for effects
         this.listeners = [];    // Event listeners to remove
-        this.children = [];     // Child scopes (z-if, z-for items)
+        this.children = [];     // Child scopes (v-if, v-for items)
     }
 
     /**
@@ -27,9 +27,11 @@ export class Scope {
      * @param {Element} el - The DOM element
      * @param {string} ev - Event name
      * @param {Function} fn - Event handler
+     * @param {boolean} [capture] - Must match the `capture` option the
+     *   listener was added with, or removeEventListener won't find it
      */
-    addListener(el, ev, fn) {
-        this.listeners.push({ el, ev, fn });
+    addListener(el, ev, fn, capture = false) {
+        this.listeners.push({ el, ev, fn, capture });
     }
 
     /**
@@ -62,7 +64,7 @@ export class Scope {
         this.effects.length = 0;
 
         // Remove all event listeners
-        this.listeners.forEach(({ el, ev, fn }) => el.removeEventListener(ev, fn));
+        this.listeners.forEach(({ el, ev, fn, capture }) => el.removeEventListener(ev, fn, capture));
         this.listeners.length = 0;
     }
 }

@@ -12,7 +12,10 @@ export default defineConfig({
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,
+        // Keep console.error/warn: they are the only visible fallback for
+        // runtime errors when a consumer hasn't registered an onError hook.
+        // Stripping them here made every published build fail silently.
+        drop_console: false,
         drop_debugger: true,
       },
       format: {
