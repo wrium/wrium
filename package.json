@@ -1,17 +1,17 @@
 {
-  "name": "zogjs",
+  "name": "wrium",
   "version": "0.4.9",
   "description": "MiniVue: A minimal reactive framework inspired by Vue.js",
   "type": "module",
   "files": [
     "dist"
   ],
-  "main": "./dist/0.4.9/zog.js",
-  "module": "./dist/0.4.9/zog.js",
+  "main": "./dist/0.4.9/wrium.js",
+  "module": "./dist/0.4.9/wrium.js",
   "exports": {
     ".": {
-      "import": "./dist/0.4.9/zog.js",
-      "types": "./dist/0.4.9/zog.d.ts"
+      "import": "./dist/0.4.9/wrium.js",
+      "types": "./dist/0.4.9/wrium.d.ts"
     }
   },
   "repository": {
@@ -34,8 +34,7 @@
     "test:coverage": "vitest --coverage"
   },
   "keywords": [
-    "zogjs",
-    "zog.js",
+    "wrium",
     "reactivity",
     "minimal-js",
     "javascript-reactive"

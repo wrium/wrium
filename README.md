@@ -1,8 +1,8 @@
-# Zog.js
+# Wrium
 
 **Full reactivity with minimal code size.**
 
-Zog.js is a minimalist JavaScript library for building reactive user interfaces. It allows you to write clean, declarative templates directly in your HTML and power them with a simple, yet powerful, reactivity system. Inspired by the best parts of modern frameworks, Zog.js offers an intuitive developer experience with zero dependencies and no build step required.
+Wrium is a minimalist JavaScript library for building reactive user interfaces. It allows you to write clean, declarative templates directly in your HTML and power them with a simple, yet powerful, reactivity system. Inspired by the best parts of modern frameworks, Wrium offers an intuitive developer experience with zero dependencies and no build step required.
 
 ---
 
@@ -24,16 +24,16 @@ Zog.js is a minimalist JavaScript library for building reactive user interfaces.
 ### Via npm
 
 ```bash
-npm install zogjs
+npm install wrium
 ```
 
 ### Direct ES Module
 
 ```html
 <script type="module">
-  import { createApp, ref } from 'zog.js';
-  // or from CDN
-  import { createApp, ref } from 'https://cdn.zogjs.com/0.4.7/zog.js';
+  import { createApp, ref } from 'wrium.js';
+  // or from a CDN (replace with the actual CDN URL once published)
+  import { createApp, ref } from 'https://cdn.example.com/wrium/0.4.7/wrium.js';
 </script>
 ```
 
@@ -47,7 +47,7 @@ npm install zogjs
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Zog.js Counter</title>
+    <title>Wrium Counter</title>
 </head>
 <body>
     <div id="app">
@@ -58,7 +58,7 @@ npm install zogjs
     </div>
 
     <script type="module">
-        import { createApp, ref } from './zog.js';
+        import { createApp, ref } from './wrium.js';
 
         createApp(() => {
             const title = ref('Counter App');
@@ -109,7 +109,7 @@ Returns a deep reactive proxy of an object or array.
 ```js
 const state = reactive({
     user: { name: 'John', age: 30 },
-    todos: ['Learn Zog.js']
+    todos: ['Learn Wrium']
 });
 
 // All nested properties are reactive
@@ -252,7 +252,7 @@ Text nodes containing `{{ expression }}` are automatically reactive:
 ## Hook System
 
 ```js
-import { onHook } from './zog.js';
+import { onHook } from './wrium.js';
 
 // Available hooks: beforeCompile, afterCompile, onError
 onHook('beforeCompile', (el, scope, cs) => {
@@ -291,7 +291,7 @@ export const MyPlugin = {
 ### Using Plugins
 
 ```js
-import { createApp } from './zog.js';
+import { createApp } from './wrium.js';
 import { MyPlugin } from './my-plugin.js';
 
 createApp(() => ({ /* ... */ }))
@@ -325,7 +325,7 @@ createApp(() => ({ /* ... */ }))
 </div>
 
 <script type="module">
-import { createApp, ref, reactive, computed } from './zog.js';
+import { createApp, ref, reactive, computed } from './wrium.js';
 
 createApp(() => {
     const newTodo = ref('');

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { createApp, ref, reactive, computed, watchEffect, nextTick } from '../src/zog.js';
+import { createApp, ref, reactive, computed, watchEffect, nextTick } from '../src/wrium.js';
 
 describe('Edge Cases and Bug Detection', () => {
     let dom;

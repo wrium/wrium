@@ -14,7 +14,7 @@ import { onHook, runHooks } from './hooks.js';
 import { evalExp } from './expression.js';
 
 /**
- * Create a Zog application
+ * Create a Wrium application
  *
  * @param {Function} setup - Setup function that returns reactive data
  * @returns {Object} App instance with mount(), unmount(), and use() methods

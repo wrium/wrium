@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ref, reactive, computed, watchEffect, nextTick, createApp } from '../src/zog.js';
+import { ref, reactive, computed, watchEffect, nextTick, createApp } from '../src/wrium.js';
 
 describe('Reactivity System', () => {
     describe('ref()', () => {

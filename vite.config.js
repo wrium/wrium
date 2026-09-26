@@ -21,10 +21,10 @@ export default defineConfig({
       mangle: true,
     },
     lib: {
-      entry: resolve(__dirname, 'src/zog.js'),
-      name: 'Zog',
+      entry: resolve(__dirname, 'src/wrium.js'),
+      name: 'Wrium',
       formats: ['es','umd', 'iife'],
-      fileName: () => 'zog.[format].js'
+      fileName: () => 'wrium.[format].js'
     },
   },
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { createApp, ref, reactive, computed } from '../src/zog.js';
+import { createApp, ref, reactive, computed } from '../src/wrium.js';
 
 describe('Compiler and Directives', () => {
     let dom;
