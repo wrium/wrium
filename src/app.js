@@ -71,12 +71,23 @@ export const createApp = setup => {
                 return this;
             }
 
-            // Provide API to plugin
+            // Provide API to plugin.
+            //
+            // Stability contract (v1): `app`, `directive`, `onHook`, `reactive`,
+            // `ref`, `computed`, `watchEffect` are the supported extension
+            // surface and follow semver.
+            //
+            // `compile`, `Scope`, `evalExp` are lower-level internals, exposed
+            // for advanced plugins that need to compile a dynamically-created
+            // subtree or manage their own child scopes (e.g. a portal/teleport
+            // plugin). They mirror the compiler's actual implementation and
+            // are NOT covered by the same stability guarantee - prefer
+            // `directive`/`onHook` when they're enough.
             plugin.install({
                 app: this,
                 reactive, ref, computed, watchEffect,
-                onHook, compile, Scope, evalExp,
-                directive: registerDirective
+                onHook, directive: registerDirective,
+                compile, Scope, evalExp
             }, options);
 
             appContext.plugins.add(plugin);
