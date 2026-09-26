@@ -37,8 +37,9 @@ const arrayIterators = new Set([
 /**
  * Create a deeply reactive proxy for an object or array
  *
- * @param {Object|Array} target - The object to make reactive
- * @returns {Proxy} A reactive proxy of the object
+ * @template {object} T
+ * @param {T} target - The object to make reactive
+ * @returns {T} A reactive proxy of the object (same shape as the input)
  *
  * @example
  * const state = reactive({
