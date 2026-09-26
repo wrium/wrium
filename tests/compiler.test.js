@@ -509,6 +509,30 @@ describe('Compiler and Directives', () => {
             button.click();
             expect(user.count).toBe(1);
         });
+
+        it('should mutate an object-valued ref directly, without .value', () => {
+            container.innerHTML = '<button @click="user.count++">Click</button>';
+            let user;
+            const app = createApp(() => {
+                user = ref({ count: 0 });
+                return { user };
+            });
+            app.mount(container);
+            container.querySelector('button').click();
+            expect(user.value.count).toBe(1);
+        });
+
+        it('should still require .value to reassign a primitive ref', () => {
+            container.innerHTML = '<button @click="count.value++">Click</button>';
+            let count;
+            const app = createApp(() => {
+                count = ref(0);
+                return { count };
+            });
+            app.mount(container);
+            container.querySelector('button').click();
+            expect(count.value).toBe(1);
+        });
     });
 
     describe('Event Modifiers (@event.modifier)', () => {
@@ -643,6 +667,31 @@ describe('Compiler and Directives', () => {
             const div = container.querySelector('div');
             expect(div.classList.contains('active')).toBe(true);
             expect(div.classList.contains('disabled')).toBe(false);
+        });
+
+        it('should bind class with an array of strings', () => {
+            container.innerHTML = '<div :class="[base, extra]"></div>';
+            const app = createApp(() => ({ base: ref('btn'), extra: ref('primary') }));
+            app.mount(container);
+            const div = container.querySelector('div');
+            expect(div.classList.contains('btn')).toBe(true);
+            expect(div.classList.contains('primary')).toBe(true);
+        });
+
+        it('should bind class with an array mixing strings and objects', () => {
+            container.innerHTML = '<div class="static" :class="[base, { active: isActive, off: isOff }]"></div>';
+            const app = createApp(() => {
+                const base = ref('btn');
+                const isActive = ref(true);
+                const isOff = ref(false);
+                return { base, isActive, isOff };
+            });
+            app.mount(container);
+            const div = container.querySelector('div');
+            expect(div.classList.contains('static')).toBe(true);
+            expect(div.classList.contains('btn')).toBe(true);
+            expect(div.classList.contains('active')).toBe(true);
+            expect(div.classList.contains('off')).toBe(false);
         });
 
         it('should bind style with object', async () => {
