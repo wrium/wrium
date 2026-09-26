@@ -45,6 +45,16 @@ cover everything that changed on the way here.
 
 ### Fixed
 
+- **`v-for` primitive items passed to a function or expression in an event
+  handler received the internal ref box instead of the raw value** (e.g.
+  `handleItem(num)` got `{ _isRef, value, toString }` instead of `42`, and
+  `num + 1` silently became string concatenation, `"421"`). This was the
+  exact class of inconsistency - `.value` needed in some places but not
+  others for the same v-for item - that originally motivated restricting
+  `ref()` to primitives only. Root-caused and fixed with a dedicated test
+  suite (`tests/vue-parity.test.js`) covering reactive() vs ref() arrays of
+  both objects and primitives, checked in the template, in event-handler
+  mutations, and passed to external functions.
 - `@keyup.enter` (and every other dot-modifier) never actually worked - no
   modifier parsing existed at all, including in the README's own Todo List
   example.
@@ -75,3 +85,9 @@ cover everything that changed on the way here.
   not scoped per `createApp()` instance - a plugin installed on one app is
   visible to every app on the page.
 - No automated browser testing yet (test suite runs against jsdom only).
+- Putting a raw `ref()` directly inside a `reactive()`/plain array (e.g.
+  `reactive([ref(1), ref(2)])`) and iterating it with `v-for` happens to
+  render correctly today, but only as a side effect of how the internal
+  reactive-wrapping and ref-unwrapping checks interact - it isn't a
+  deliberately designed/tested path. Avoid relying on it; put plain values
+  in arrays and let `v-for` do its own boxing.
