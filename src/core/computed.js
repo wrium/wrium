@@ -7,13 +7,22 @@ import { Dep } from './dep.js';
 import { ReactiveEffect } from './effect.js';
 
 /**
+ * @template T
+ * @typedef {Object} ComputedRef
+ * @property {T} value - The current (memoized) value
+ * @property {true} _isRef - Marker used by evalExp for auto-unwrapping
+ * @property {import('./effect.js').ReactiveEffect} _effect - Exposed for debugging
+ */
+
+/**
  * Create a computed property that auto-updates when dependencies change
  *
  * Computed values are lazy - they only recalculate when accessed and dirty.
  * They cache their result until a dependency changes.
  *
- * @param {Function} getter - Function that returns the computed value
- * @returns {Object} A ref-like object with .value property (read-only)
+ * @template T
+ * @param {() => T} getter - Function that returns the computed value
+ * @returns {ComputedRef<T>} A ref-like object with .value property (read-only)
  *
  * @example
  * const count = ref(1);
