@@ -33,6 +33,18 @@ import './core-directives.js';
 const STRUCTURAL_MODS = new Set(['prevent', 'stop', 'once', 'self', 'capture', 'passive']);
 
 /**
+ * Resolve a :class binding value into a class string.
+ * Accepts a string, an object ({ active: isActive }), an array of either
+ * (mixing strings and objects, like Vue's :class="[base, { active }]"), or
+ * anything falsy (empty string).
+ */
+const resolveClass = res => {
+    if (Array.isArray(res)) return res.map(resolveClass).filter(Boolean).join(' ');
+    if (isObj(res)) return Object.keys(res).filter(k => res[k]).join(' ');
+    return typeof res === 'string' ? res : '';
+};
+
+/**
  * Compile a DOM element and its children
  *
  * @param {Node} el - DOM element to compile
@@ -337,7 +349,15 @@ export const compile = (el, scope, cs) => {
                     // Otherwise evaluate as expression
                     try {
                         const keys = Object.keys(scope);
-                        const vals = keys.map(k => scope[k]);
+                        // Object-valued refs unwrap (mutating .name etc. works,
+                        // since objects are shared by reference); primitive
+                        // refs stay boxed - `count.value++` still needs
+                        // .value, since a bare number can't carry the write
+                        // back to the ref.
+                        const vals = keys.map(k => {
+                            const v = scope[k];
+                            return v?._isRef && isObj(v.value) ? v.value : v;
+                        });
                         Function(...keys, 'e', `"use strict";${value}`)(...vals, e);
                     } catch (err) {
                         console.error?.('Event error:', err);
@@ -372,13 +392,11 @@ export const compile = (el, scope, cs) => {
                     Object.assign(el.style, res);
                 }
                 else if (attr === 'class') {
-                    // Class binding - supports string or object
+                    // Class binding - supports string, object, or array
                     // Object: :class="{ active: isActive, error: hasError }"
+                    // Array:  :class="[baseClass, { active: isActive }]"
                     // String: :class="'btn ' + btnType"
-                    el.setAttribute('class', (isObj(res)
-                        ? staticClass + ' ' + Object.keys(res).filter(k => res[k]).join(' ')
-                        : typeof res === 'string' ? staticClass + ' ' + res : staticClass
-                    ).trim());
+                    el.setAttribute('class', (staticClass + ' ' + resolveClass(res)).trim());
                 }
                 else {
                     // Generic attribute binding
