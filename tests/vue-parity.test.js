@@ -149,6 +149,15 @@ describe('Vue-parity: v-for item consistency (reactive vs ref)', () => {
             container.querySelector('li').click();
             expect(received).toBe(43);
         });
+
+        it('binds a v-for primitive item through :attr correctly', () => {
+            container.innerHTML = '<li v-for="item in items" :data-num="item"></li>';
+            const app = createApp(() => ({ items: reactive([1, 2, 3]) }));
+            app.mount(container);
+            const lis = container.querySelectorAll('li');
+            expect(lis[0].getAttribute('data-num')).toBe('1');
+            expect(lis[2].getAttribute('data-num')).toBe('3');
+        });
     });
 
     describe('array of primitives, built with ref() (Vue-parity addition)', () => {
@@ -174,16 +183,14 @@ describe('Vue-parity: v-for item consistency (reactive vs ref)', () => {
         });
     });
 
-    describe('edge case: array containing pre-existing ref() items directly', () => {
-        it('records what actually happens with reactive([ref(1), ref(2)]) in v-for', () => {
+    describe('edge case: array containing pre-existing ref() items directly (known limitation)', () => {
+        it('reads correctly today, but this is a side effect, not a designed/guaranteed path (see CHANGELOG)', () => {
             container.innerHTML = '<ul><li v-for="item in items">{{ item }}</li></ul>';
             const app = createApp(() => ({ items: reactive([ref(1), ref(2)]) }));
             app.mount(container);
             const lis = container.querySelectorAll('li');
-            // Documenting actual output for investigation - see test run notes.
-            expect(lis.length).toBe(2);
-            // eslint-disable-next-line no-console
-            console.log('ref-in-array item[0] textContent:', JSON.stringify(lis[0].textContent));
+            expect(lis[0].textContent).toBe('1');
+            expect(lis[1].textContent).toBe('2');
         });
     });
 });
