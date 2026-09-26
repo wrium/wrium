@@ -1,37 +1,40 @@
 /**
  * REF
  * ===
- * ref() - For primitive values (string, number, boolean)
+ * ref() - A reactive box around any value. Primitives are tracked directly;
+ * objects/arrays are transparently handed to reactive() (matches Vue's
+ * ref() semantics, so `ref({ ... })` is no longer an error).
  */
 import { Dep } from './dep.js';
 import { isObj } from '../utils.js';
+import { reactive } from './reactive.js';
 
 /**
- * Create a reactive reference for a primitive value
+ * Create a reactive reference to any value.
  *
- * NOTE: ref() only accepts primitive values (string, number, boolean, null, undefined).
- * For objects and arrays, use reactive() instead.
+ * - Primitive values (string, number, boolean, null, undefined) are tracked
+ *   directly.
+ * - Objects and arrays are wrapped with reactive() - `.value` returns the
+ *   reactive proxy, so nested property access/mutation is reactive too.
  *
- * @param {*} val - The primitive value
- * @returns {Object} A ref object with .value property
- * @throws {Error} If val is an object or array
+ * @param {*} val - The initial value
+ * @returns {Object} A ref object with a reactive .value property
  *
  * @example
  * const count = ref(0);
- * count.value++;        // Updates and triggers reactivity
- * console.log(count.value); // 1
+ * count.value++;
+ *
+ * const user = ref({ name: 'John' });
+ * user.value.name = 'Jane'; // reactive, same as reactive({ name: 'John' })
  *
  * // In templates, .value is automatic:
- * // {{ count }} instead of {{ count.value }}
+ * // {{ count }} / {{ user.name }} instead of {{ count.value }} / {{ user.value.name }}
  */
 export const ref = val => {
-    // Enforce primitive-only rule for API clarity
-    if (isObj(val)) {
-        console.warn('ref() only accepts primitive values. Use reactive() for objects and arrays.');
-        throw new Error('ref() cannot be used with objects or arrays. Use reactive() instead.');
-    }
-
-    let v = val;
+    // The raw, unwrapped value - used to detect real changes on assignment
+    let rawValue = val;
+    // The exposed value - objects/arrays are transparently reactive
+    let value = isObj(val) ? reactive(val) : val;
     const dep = new Dep();
 
     return {
@@ -41,23 +44,19 @@ export const ref = val => {
         /** Get the value (tracks dependency) */
         get value() {
             dep.depend();
-            return v;
+            return value;
         },
 
-        /** Set the value (triggers updates if changed) */
+        /** Set the value (triggers updates if the raw value changed) */
         set value(nv) {
-            // Also prevent setting to object/array
-            if (isObj(nv)) {
-                console.warn('ref() value cannot be set to an object or array. Use reactive() instead.');
-                throw new Error('ref() value cannot be set to an object or array.');
-            }
-            if (!Object.is(nv, v)) {
-                v = nv;
+            if (!Object.is(nv, rawValue)) {
+                rawValue = nv;
+                value = isObj(nv) ? reactive(nv) : nv;
                 dep.notify();
             }
         },
 
         /** String conversion for template interpolation */
-        toString: () => String(v)
+        toString: () => String(value)
     };
 };
