@@ -227,9 +227,17 @@ Text nodes containing `{{ expression }}` are automatically reactive:
 <!-- Method handler (recommended) -->
 <button @click="handleClick">Click me</button>
 
-<!-- Inline expression (need .value for refs) -->
+<!-- Inline expression -->
 <button @click="count.value++">Increment</button>
+<button @click="user.name = 'Jane'">Rename</button>
 ```
+
+**On `.value` in inline expressions:** you only need `.value` to *reassign* a
+primitive ref itself (`count.value++`, `count.value = 5`) - a bare number
+can't carry the write back to the ref. Reading or mutating the *contents* of
+a ref never needs `.value`, including for object refs in event handlers
+(`user.name = 'Jane'` works directly when `user = ref({ name: 'John' })`,
+since the object is shared by reference).
 
 **Event modifiers** — chain one or more with dots:
 
@@ -258,6 +266,7 @@ Text nodes containing `{{ expression }}` are automatically reactive:
 <img :src="imageUrl" :alt="imageAlt" />
 <button :disabled="isDisabled">Submit</button>
 <div :class="{ active: isActive, error: hasError }">Content</div>
+<div :class="[baseClass, { active: isActive }]">Content</div>  <!-- array syntax -->
 <div :style="{ color: textColor, fontSize: size + 'px' }">Text</div>
 ```
 
@@ -421,7 +430,7 @@ createApp(() => {
 | `v-html` *(plugin)* | `<div v-html="raw">` — requires `HtmlPlugin` |
 | `@event` / `v-on:event` | `<button @click="handler">`, `<button @click.prevent.stop="h">` |
 | `:attr` / `v-bind:attr` | `<img :src="url" />` |
-| `:class` | `<div :class="{ active: isActive }">` |
+| `:class` | `<div :class="{ active: isActive }">`, `<div :class="[base, { active }]">` |
 | `:style` | `<div :style="{ color: c }">` |
 
 ---
@@ -444,8 +453,10 @@ Wrium (formerly Zog.js) is pre-v1 and under active development - the API can sti
 - ✅ Directive registry so plugins can add real `v-xxx` directives, not just compile hooks
 - ✅ Event modifiers (`.prevent`, `.stop`, `.once`, `.self`, `.capture`, `.passive`, key modifiers)
 - ✅ `v-html` moved out of core into an opt-in plugin
-- ⏳ TypeScript declarations
-- ⏳ Bundle size budget (target: ≤10KB minified for the core build; currently a bit larger while these features land)
+- ✅ Object-valued refs mutate directly in event handlers, no `.value` needed for nested access (only for reassigning the ref itself)
+- ✅ `:class` array syntax (`:class="[base, { active }]"`), matching Vue
+- ✅ Real TypeScript declarations generated from JSDoc (`npm run build:types`, zero runtime cost) - see `tsconfig.json`
+- ⏳ Bundle size budget (target: ≤10KB minified for the core build - currently ~9.9KB, still within budget)
 
 ## License
 
