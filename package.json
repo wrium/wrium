@@ -11,7 +11,7 @@
   "exports": {
     ".": {
       "import": "./dist/0.4.9/wrium.js",
-      "types": "./dist/0.4.9/wrium.d.ts"
+      "types": "./dist/types/wrium.d.ts"
     }
   },
   "repository": {
@@ -24,11 +24,13 @@
     "@vitest/ui": "4.0.15",
     "jsdom": "^27.3.0",
     "terser": "^5.44.1",
+    "typescript": "^7.0.2",
     "vite": "^7.2.4"
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm run build:types",
+    "build:types": "tsc -p tsconfig.json",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage"
