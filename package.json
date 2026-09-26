@@ -17,9 +17,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/zogjs/zogjs.git"
+    "url": "https://github.com/wrium/wrium.git"
   },
-  "homepage": "https://zogjs.com",
+  "homepage": "https://github.com/wrium/wrium",
   "devDependencies": {
     "@vitest/coverage-v8": "4.0.15",
     "@vitest/ui": "4.0.15",
