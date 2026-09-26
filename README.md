@@ -317,6 +317,8 @@ export const MyPlugin = {
 
 A directive handler receives `(el, expression, ctx)`, where `ctx` is `{ scope, cs, evalExp, watchEffect, ref, reactive }` - everything needed to set up a reactive effect or listener. Register cleanup through `cs` (`cs.addEffect(...)` / `cs.addListener(...)`) so it's automatically torn down when the element is removed.
 
+**API stability (v1):** `app`, `directive`, `onHook`, `reactive`, `ref`, `computed`, `watchEffect` are the supported plugin surface and follow semver - build against these. `compile`, `Scope`, `evalExp` are also passed through for advanced cases (e.g. compiling a dynamically-created subtree), but they mirror the compiler's internals directly and can change without a major version bump.
+
 ### Using Plugins
 
 ```js
