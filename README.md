@@ -183,6 +183,22 @@ Text nodes containing `{{ expression }}` are automatically reactive:
 <div v-else>Keep trying!</div>
 ```
 
+**Don't combine `v-if` with `v-for` on the same element** - it's rejected at compile time (reported via the `onError` hook and `console.error`, the element is left uncompiled). Use a computed filtered list, or move `v-if` to a wrapping element, instead:
+
+```html
+<!-- Don't -->
+<li v-if="show" v-for="item in items">{{ item }}</li>
+
+<!-- Do: move v-if to a real wrapping element (there's no <template> support,
+     so it has to be an actual rendering element, e.g. the containing <ul>) -->
+<ul v-if="show">
+    <li v-for="item in items">{{ item }}</li>
+</ul>
+
+<!-- or filter the source instead of the render -->
+<li v-for="item in visibleItems">{{ item }}</li>
+```
+
 #### List Rendering
 
 **`v-for`**: Repeat elements for each item in an array.
@@ -320,6 +336,14 @@ export const MyPlugin = {
             setTimeout(() => el.focus(), 0);
         });
 
+        // Directives can take an argument and modifiers too, same shape as
+        // Vue's: v-tooltip:top.instant="text" -> arg: 'top', modifiers: { instant: true }
+        api.directive('tooltip', (el, exp, { scope, evalExp, arg, modifiers }) => {
+            const position = arg || 'bottom';
+            const delay = modifiers.instant ? 0 : 300;
+            // ...
+        });
+
         // Or hook into the compile pass directly
         api.onHook('beforeCompile', (el, scope, cs) => {
             // ...
@@ -328,7 +352,7 @@ export const MyPlugin = {
 };
 ```
 
-A directive handler receives `(el, expression, ctx)`, where `ctx` is `{ scope, cs, evalExp, watchEffect, ref, reactive }` - everything needed to set up a reactive effect or listener. Register cleanup through `cs` (`cs.addEffect(...)` / `cs.addListener(...)`) so it's automatically torn down when the element is removed.
+A directive handler receives `(el, expression, ctx)`, where `ctx` is `{ scope, cs, evalExp, watchEffect, ref, reactive, arg, modifiers }` - everything needed to set up a reactive effect or listener, plus `arg` (the string after `:`, or `undefined`) and `modifiers` (an object with each dot-suffix as a truthy key, e.g. `.foo.bar` -> `{ foo: true, bar: true }`). Register cleanup through `cs` (`cs.addEffect(...)` / `cs.addListener(...)`) so it's automatically torn down when the element is removed.
 
 **API stability (v1):** `app`, `directive`, `onHook`, `reactive`, `ref`, `computed`, `watchEffect` are the supported plugin surface and follow semver - build against these. `compile`, `Scope`, `evalExp` are also passed through for advanced cases (e.g. compiling a dynamically-created subtree), but they mirror the compiler's internals directly and can change without a major version bump.
 
