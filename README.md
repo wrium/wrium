@@ -14,6 +14,7 @@ Wrium is a minimalist JavaScript library for building reactive user interfaces. 
 * **Template directives**: `v-if`, `v-for`, `v-text`, `v-show`, `v-model`, `v-on` (shorthand `@`), `v-bind` (shorthand `:`)
 * **Event modifiers**: `.prevent`, `.stop`, `.once`, `.self`, `.capture`, `.passive`, and key modifiers like `.enter`
 * **Directive registry + plugin architecture**: built-in directives are registered the same way plugins register their own (e.g. `v-html` ships as an opt-in plugin, not core)
+* **Components**: `app.component(name, { template, setup })`, used as a custom tag with reactive props
 * **App lifecycle**: `createApp(...).mount(selector)` and `.unmount()`
 * **Hook System**: Extend and customize behavior with lifecycle hooks
 * **Async effect queue**: Batched updates with effect sorting for optimal performance
@@ -301,6 +302,33 @@ since the object is shared by reference).
 
 ---
 
+## Components
+
+`app.component(name, { template, setup })` registers a reusable, named unit under a kebab-case tag name. Used in markup as a custom tag:
+
+```js
+app.component('todo-item', {
+    template: '<li :class="{ done }">{{ text }} <button @click="handleToggle">✓</button></li>',
+    setup(props) {
+        return { handleToggle: () => props.onToggle?.() };
+    }
+});
+```
+
+```html
+<todo-item v-for="t in todos" :key="t.id" :text="t.text" :done="t.done" :on-toggle="() => toggle(t.id)"></todo-item>
+```
+
+**How props work:** every attribute on the tag becomes a prop - `:attr` ones stay reactively in sync with the parent, plain ones are static strings. Kebab-case names are camelCased (`:on-toggle` → `props.onToggle`), same as Vue. Props are already the component's scope, so a plain passthrough prop (`text`, `done` above) needs no `setup()` at all - only add `setup()` to compute additional state or wrap a callback.
+
+**The component's scope is isolated** - unlike `v-if`/`v-for` branches, it does *not* inherit the parent's scope. Only props (and whatever `setup()` returns) are visible in its template.
+
+**No slots or a separate emit API** in this minimal version - a function-valued prop doubles as an emit: the child just calls `props.onToggle?.()`, the parent passes `:on-toggle="() => toggle(t.id)"`.
+
+**Footgun to avoid:** don't name a value returned from `setup()` the same as an incoming prop it wraps (e.g. `setup(props) { return { onClick: () => props.onClick() } }`). `props` is the live, shared scope object - that assignment overwrites the incoming callback with a reference to itself, and calling it recurses forever. Name the wrapper differently (`handleClick`, not `onClick`).
+
+---
+
 ## Hook System
 
 ```js
@@ -452,7 +480,7 @@ createApp(() => {
 | `reactive(object)` | Deep reactive proxy for objects/arrays |
 | `computed(getter)` | Cached computed value |
 | `watchEffect(fn, opts?)` | Auto-tracking reactive effect |
-| `createApp(setup)` | Create app with `.mount()`, `.unmount()`, `.use()` |
+| `createApp(setup)` | Create app with `.mount()`, `.unmount()`, `.use()`, `.component()` |
 | `nextTick(fn)` | Execute after DOM update |
 | `onHook(name, fn)` | Register lifecycle hook |
 
@@ -484,7 +512,7 @@ Requires ES6 Proxy support:
 
 ## Bundle Size
 
-- **~9.9KB** minified (ES build), zero dependencies, no build step required
+- **~10.8KB** minified (ES build), zero dependencies, no build step required
 - `v-html` and any other plugin-provided directives are not counted here - they're opt-in, shipped separately from core (see [Optional Plugins](#optional-plugins))
 - Type declarations (`dist/types/`) are generated at build time and add nothing to the runtime bundle
 
