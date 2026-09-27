@@ -9,7 +9,7 @@ async function fillValid(page, overrides = {}) {
         email: 'ada@example.com',
         password: 'supersecret',
         confirmPassword: 'supersecret',
-        country: 'ir',
+        country: 'de',
         ...overrides,
     };
     await page.getByTestId('name-input').fill(values.name);
