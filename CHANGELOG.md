@@ -100,6 +100,28 @@ cover everything that changed on the way here.
   config's `fileName` pattern always emits `wrium.es.js`/`wrium.umd.js`/
   `wrium.iife.js`. This had been broken since the very first `zog.js`
   release; `import 'wrium'` would 404.
+- **`require('wrium')` threw (`ref is not a function`) even though
+  `package.json` pointed `exports.require` at the UMD build.** Because the
+  package declares `"type": "module"`, Node treats *every* `.js` file in it
+  as an ES module regardless of the `exports` condition that resolved to
+  it - the UMD bundle's own CommonJS-detection branch never ran. Fixed by
+  emitting the UMD build as `wrium.umd.cjs` (the vite `fileName` callback
+  now branches on format), which is unambiguous to Node no matter the
+  package's `"type"`. Caught by actually installing a real `npm pack`
+  tarball into a scratch project and requiring it, rather than testing
+  only against source through the Vite dev server.
+- **The password-strength, draggable, and html plugins were undeployable -
+  `npm pack` never included their source.** `package.json`'s `"files"`
+  field only listed `"dist"`, and the vite build only bundles the core
+  entry (`src/wrium.js`), so `src/plugins/*.js` shipped in none of the
+  published files - only their `.d.ts` declarations did. Every plugin
+  import example in this README would have 404'd for a real npm consumer.
+  Fixed by adding `"src/plugins"` to `files` and a subpath `exports` entry
+  per plugin (`wrium/plugins/html.js`, `.../password-strength.js`,
+  `.../draggable.js`) pointing straight at the (dependency-free, already
+  standalone) source - no bundling needed. Also caught by the `npm pack`
+  smoke test, not by any of the existing unit/e2e suites, which only ever
+  imported plugins from source via a relative path.
 - **`v-if` combined with `v-for` on the same element used to leak**: toggling
   the condition to true rendered the list correctly, but toggling back to
   false did not remove it - `v-for` replaces its own template element with a
