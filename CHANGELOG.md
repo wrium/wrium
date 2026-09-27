@@ -64,6 +64,10 @@ cover everything that changed on the way here.
   (each instance gets independent, correctly-scoped props) and cleans up
   properly when its containing scope is destroyed. Adds ~0.56KB
   (~9.9KB -> ~10.8KB, well inside the ≤15KB budget for this phase).
+- **`v-pre`**: skips compiling an element and its subtree entirely, taking
+  priority over every other directive on the same element - matches Vue.
+  Lets literal `{{ }}` template syntax be shown as text (e.g. in docs) or a
+  third-party widget's markup be left untouched. ~0.09KB.
 
 ### Fixed
 
