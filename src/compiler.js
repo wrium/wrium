@@ -18,6 +18,8 @@
  * - @event or v-on:event   - Event handling, with .prevent/.stop/.once/
  *                             .self/.capture/.passive and key modifiers
  *                             (e.g. .enter matches e.key === 'Enter')
+ * - <tag-name>             - A component registered via app.component(),
+ *                             matched by tag name (components.js)
  */
 import { runHooks } from './hooks.js';
 import { watchEffect } from './core/effect.js';
@@ -27,6 +29,7 @@ import { ref } from './core/ref.js';
 import { reactive, IS_REACTIVE } from './core/reactive.js';
 import { isObj } from './utils.js';
 import { getDirective } from './directives.js';
+import { getComponent } from './components.js';
 import './core-directives.js';
 
 /** Event modifiers handled structurally (not treated as key filters) */
@@ -320,6 +323,54 @@ export const compile = (el, scope, cs) => {
 
             itemsMap = newItemsMap;
         }));
+
+        runHooks('afterCompile', el, scope, cs);
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // COMPONENTS - <tag-name> matching a registered app.component()
+    // -------------------------------------------------------------------------
+    // Every attribute on the tag becomes a prop (dynamic :attr ones stay
+    // reactively in sync with the parent). Unlike v-if/v-for branches, the
+    // component's scope does NOT inherit the parent scope - only props and
+    // whatever setup() returns, so components are actually encapsulated.
+    // -------------------------------------------------------------------------
+    const compDef = getComponent(el.tagName.toLowerCase());
+    if (compDef) {
+        // Rendered as children of the tag itself, not a sibling replacement -
+        // v-for compiles its item clones *before* they're attached to a
+        // parent (it inserts them into the DOM afterward), so anything here
+        // that depended on el.parentNode would silently do nothing for a
+        // component used as a v-for item template.
+        const props = reactive({});
+        const childScope = new Scope(props);
+        cs.addChild(childScope);
+
+        for (const { name, value } of [...el.attributes]) {
+            // kebab-case -> camelCase (Vue's own convention): HTML attribute
+            // names can't contain the characters a JS identifier needs, and
+            // prop keys end up as evalExp's Function() parameter names, so
+            // e.g. "static-attr" would otherwise throw a SyntaxError there.
+            const key = (name.startsWith(':') ? name.slice(1) : name)
+                .replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+            if (name.startsWith(':')) {
+                childScope.addEffect(watchEffect(() => {
+                    props[key] = evalExp(value, scope);
+                }));
+            } else {
+                props[key] = value;
+            }
+            el.removeAttribute(name);
+        }
+
+        if (compDef.setup) {
+            const setupResult = compDef.setup(props);
+            if (setupResult) Object.assign(props, setupResult);
+        }
+
+        el.innerHTML = compDef.template;
+        [...el.childNodes].forEach(n => compile(n, childScope.data, childScope));
 
         runHooks('afterCompile', el, scope, cs);
         return;
