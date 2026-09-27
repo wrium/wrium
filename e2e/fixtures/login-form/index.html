@@ -16,6 +16,11 @@
     .checkbox-field label { display: flex; align-items: center; gap: 8px; font-size: .875rem; }
     .checkbox-field input { width: auto; }
     .error { color: #d33; font-size: .8rem; margin: 4px 0 0; }
+    .strength { font-size: .8rem; margin: 4px 0 0; }
+    .strength.weak { color: #d33; }
+    .strength.fair { color: #b8860b; }
+    .strength.good { color: #2f7d32; }
+    .strength.strong { color: #1a7f37; }
     .success { color: #1a7f37; font-size: .9rem; margin-top: 12px; }
     .server-error { color: #d33; font-size: .9rem; margin-top: 12px; }
     button { width: 100%; padding: 10px; border: none; border-radius: 4px; background: #2f6fed; color: #fff; font-size: .95rem; cursor: pointer; }
@@ -46,7 +51,12 @@
             <label for="password">Password</label>
             <input id="password" type="password" data-testid="password-input"
                    v-model="form.password" @blur="markTouched('password')"
+                   v-password-strength="passwordStrength"
                    :class="{ invalid: touched.password && errors.password }" />
+            <p class="strength" data-testid="password-strength-label"
+               v-if="form.password" :class="passwordStrength?.label">
+                Strength: {{ passwordStrength?.label }}
+            </p>
             <p class="error" data-testid="password-error" v-if="touched.password && errors.password">{{ errors.password }}</p>
         </div>
 
@@ -92,6 +102,7 @@
         // always exercises the current code under test. A real consumer would
         // import from the published package or a CDN build instead.
         import { createApp, ref, reactive, computed } from '/src/wrium.js';
+        import { PasswordStrengthPlugin } from '/src/plugins/password-strength.js';
 
         const validators = {
             name: v => !v.trim() ? 'Name is required'
@@ -121,11 +132,15 @@
             });
             const status = ref('idle'); // idle | submitting | success | error
             const serverError = ref('');
+            const passwordStrength = ref(null);
 
             const errors = computed(() => ({
                 name: validators.name(form.name),
                 email: validators.email(form.email),
-                password: validators.password(form.password),
+                password: validators.password(form.password)
+                    || (passwordStrength.value && !passwordStrength.value.valid
+                        ? (passwordStrength.value.reasons[0] || 'Password is too weak')
+                        : ''),
                 confirmPassword: validators.confirmPassword(form.confirmPassword, form),
                 country: validators.country(form.country),
                 agree: validators.agree(form.agree)
@@ -165,8 +180,10 @@
                 Object.keys(touched).forEach(k => { touched[k] = false; });
             }
 
-            return { form, touched, errors, status, serverError, markTouched, handleSubmit };
-        }).mount('#signup-form');
+            return { form, touched, errors, status, serverError, passwordStrength, markTouched, handleSubmit };
+        })
+            .use(PasswordStrengthPlugin, { minLength: 8, minScore: 'fair' })
+            .mount('#signup-form');
     </script>
 </body>
 </html>
