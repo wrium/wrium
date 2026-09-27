@@ -180,6 +180,50 @@ describe('Compiler and Directives', () => {
         });
     });
 
+    describe('v-pre directive', () => {
+        it('leaves interpolation inside it literal, uncompiled', () => {
+            container.innerHTML = '<code v-pre>{{ raw }}</code>';
+            const app = createApp(() => ({ raw: ref('should not appear') }));
+            app.mount(container);
+            expect(container.querySelector('code').textContent).toBe('{{ raw }}');
+        });
+
+        it('leaves nested directives inert too, not just interpolation', () => {
+            container.innerHTML = '<div v-pre><span v-if="true">{{ x }}</span></div>';
+            const app = createApp(() => ({ x: ref('nope') }));
+            app.mount(container);
+            const span = container.querySelector('span');
+            expect(span).not.toBeNull(); // v-if never ran, so nothing was removed
+            expect(span.hasAttribute('v-if')).toBe(true); // attribute left untouched
+            expect(span.textContent).toBe('{{ x }}');
+        });
+
+        it('removes the v-pre attribute itself from the DOM', () => {
+            container.innerHTML = '<code v-pre>{{ raw }}</code>';
+            const app = createApp(() => ({ raw: ref('x') }));
+            app.mount(container);
+            expect(container.querySelector('code').hasAttribute('v-pre')).toBe(false);
+        });
+
+        it('does not affect sibling elements outside it', () => {
+            container.innerHTML = '<p>{{ compiled }}</p><code v-pre>{{ compiled }}</code>';
+            const app = createApp(() => ({ compiled: ref('YES') }));
+            app.mount(container);
+            expect(container.querySelector('p').textContent).toBe('YES');
+            expect(container.querySelector('code').textContent).toBe('{{ compiled }}');
+        });
+
+        it('takes priority over other directives on the same element', () => {
+            container.innerHTML = '<div v-pre v-show="visible">{{ x }}</div>';
+            const app = createApp(() => ({ visible: ref(false), x: ref('literal') }));
+            app.mount(container);
+            const div = container.querySelector('div');
+            // v-show never ran, so display was never touched, and text is untouched
+            expect(div.style.display).toBe('');
+            expect(div.textContent).toBe('{{ x }}');
+        });
+    });
+
     describe('v-show directive', () => {
         it('should show element when true', () => {
             container.innerHTML = '<div v-show="visible">Content</div>';
