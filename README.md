@@ -34,9 +34,7 @@ npm install wrium
 
 ```html
 <script type="module">
-  import { createApp, ref } from 'wrium.js';
-  // or from a CDN (replace with the actual CDN URL once published)
-  import { createApp, ref } from 'https://cdn.example.com/wrium/1.0.0/wrium.js';
+  import { createApp, ref } from './node_modules/wrium/dist/1.0.0/wrium.es.js';
 </script>
 ```
 
@@ -418,6 +416,41 @@ createApp(() => ({ htmlContent: ref('<b>Bold</b>') }))
 <div v-html="htmlContent"></div>
 ```
 
+**`v-password-strength`** — flags weak/common passwords as you type (`src/plugins/password-strength.js`). Blocks an exact/substring match against a common-password list, sequential runs (`abc`, `123`), and repeated characters; scores character-class variety for the rest. `v-password-strength="someRef"` must point at a `ref()` - it writes `{ label, valid, reasons }` into it on every input.
+
+```js
+import { PasswordStrengthPlugin } from './plugins/password-strength.js';
+
+createApp(() => ({ password: ref(''), strength: ref(null) }))
+    .use(PasswordStrengthPlugin, { minLength: 10, minScore: 'good' }) // label thresholds: weak < fair < good < strong
+    .mount('#app');
+```
+
+```html
+<input type="password" v-model="password" v-password-strength="strength" />
+<p>Strength: {{ strength?.label }}</p>
+<button :disabled="!strength?.valid">Submit</button>
+```
+
+`assessPassword(password, options)` is also exported directly as a pure function, for validating the same way outside a template (e.g. before a submit that also hits a server).
+
+**`v-draggable`** — makes an element draggable with the mouse, touch, or pen, via a single Pointer Events code path (`src/plugins/draggable.js`). `v-draggable="position"` must point at a `ref({ x, y })`: dragging writes the new coordinates into it, and setting `position.value` from application code moves the element too, since one `watchEffect` drives the on-screen position either way. Movement is automatically clamped so the element can't leave its offset parent (which is given `position: absolute` automatically if it has no `position` set).
+
+```js
+import { DraggablePlugin } from './plugins/draggable.js';
+
+createApp(() => ({ position: ref({ x: 0, y: 0 }) }))
+    .use(DraggablePlugin)
+    .mount('#app');
+```
+
+```html
+<div class="box" style="position: relative">
+    <div v-draggable="position">Drag me</div>
+</div>
+<p>{{ position.x }}, {{ position.y }}</p>
+```
+
 Using an unregistered `v-xxx` directive (forgetting to install its plugin) reports an error through `onHook('onError', ...)` and logs to the console - it never fails silently.
 
 ---
@@ -531,9 +564,36 @@ Requires ES6 Proxy support:
 
 ---
 
+## Development
+
+```bash
+npm test              # unit tests (Vitest + jsdom), 203 tests
+npm run test:e2e      # end-to-end tests (Playwright, real Chromium), 37 tests
+npm run test:e2e:ui   # same, with Playwright's interactive UI
+npm run build         # bundle + generate .d.ts
+```
+
+E2E tests run against real example pages under `e2e/fixtures/` (a signup
+form, a Todo app, a draggable demo, and a two-page component-reuse demo) -
+`npm run dev` serves the same fixtures if you want to click through one
+yourself.
+
+---
+
 ## Project Status
 
-Wrium (formerly Zog.js) just shipped v1.0.0 - see [CHANGELOG.md](./CHANGELOG.md) for what changed on the way here, including a couple of known limitations still open (global plugin registry, no browser test coverage yet).
+Wrium (formerly Zog.js) is preparing its v1.0.0 release - see
+[CHANGELOG.md](./CHANGELOG.md) for everything that changed on the way here.
+Known limitations still open:
+
+- The directive registry, component registry, and hook system are global/
+  module-level, not scoped per `createApp()` instance.
+- No slots or a dedicated emit API for components - a function-valued prop
+  stands in for emit (see [Components](#components) above).
+- `reactive()` has no special-casing for `Map`/`Set` - calling their methods
+  on a reactive-wrapped instance will likely throw.
+- A raw `ref()` placed directly inside a `reactive()` array works today only
+  as a side effect of internal unwrapping, not a deliberately tested path.
 
 ## License
 
