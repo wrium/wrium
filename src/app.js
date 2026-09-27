@@ -13,6 +13,7 @@ import { watchEffect } from './core/effect.js';
 import { onHook, runHooks } from './hooks.js';
 import { evalExp } from './expression.js';
 import { registerDirective } from './directives.js';
+import { registerComponent } from './components.js';
 
 /**
  * @typedef {Object} WriumPlugin
@@ -20,8 +21,16 @@ import { registerDirective } from './directives.js';
  */
 
 /**
+ * @typedef {Object} ComponentDef
+ * @property {string} template - HTML string for the component's own subtree
+ * @property {(props: Object) => Object|void} [setup] - Receives the reactive
+ *   props object; whatever it returns is merged into the component's scope
+ */
+
+/**
  * @typedef {Object} App
  * @property {(plugin: WriumPlugin, options?: Object) => App} use - Install a plugin
+ * @property {(name: string, def: ComponentDef) => App} component - Register a reusable component under a tag name
  * @property {(root: string | Element) => App} mount - Mount to a DOM element
  * @property {() => void} unmount - Clean up all effects and listeners
  */
@@ -91,6 +100,32 @@ export const createApp = setup => {
             }, options);
 
             appContext.plugins.add(plugin);
+            return this;
+        },
+
+        /**
+         * Register a reusable component under a kebab-case tag name. Used in
+         * markup as a custom tag: `app.component('my-badge', {...})` is used
+         * as `<my-badge :label="text"></my-badge>`. The component's scope is
+         * isolated (it does not see the parent's scope) - only props (every
+         * attribute on the tag, kept reactive for `:attr` ones) and whatever
+         * setup() returns.
+         *
+         * @param {string} name - Tag name, e.g. 'my-badge'
+         * @param {ComponentDef} def - { template, setup? }
+         * @returns {App} App instance for chaining
+         *
+         * @example
+         * app.component('todo-item', {
+         *     template: '<li :class="{ done }">{{ text }} <button @click="onToggle">x</button></li>',
+         *     setup(props) {
+         *         return { text: props.text, done: props.done, onToggle: () => props.onToggle?.() };
+         *     }
+         * });
+         * // <todo-item :text="t.text" :done="t.done" :on-toggle="() => toggle(t.id)"></todo-item>
+         */
+        component(name, def) {
+            registerComponent(name, def);
             return this;
         },
 
