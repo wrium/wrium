@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wrium E2E: Docs Site - Home</title>
+<link rel="stylesheet" href="shared/theme.css">
+</head>
+<body>
+    <div id="app">
+    <site-header :current="'home'"></site-header>
+
+    <main>
+        <h1>Wrium</h1>
+        <p class="tagline">Full reactivity with minimal code size.</p>
+
+        <p>
+            Wrium is a minimalist JavaScript library for building reactive
+            user interfaces, with declarative templates and zero build step.
+        </p>
+
+        <section class="counter-demo">
+            <p data-testid="count-display">Count: {{ count }}</p>
+            <button data-testid="increment-button" @click="count.value++">Increment</button>
+        </section>
+
+        <h2>Quick example</h2>
+        <p>Here's exactly the code that powers the counter above:</p>
+        <pre class="code-sample" data-testid="code-sample" v-pre>const count = ref(0);
+
+&lt;p&gt;Count: {{ count }}&lt;/p&gt;
+&lt;button @click="count.value++"&gt;Increment&lt;/button&gt;</pre>
+    </main>
+
+    <site-footer :version="'1.0.0'"></site-footer>
+    </div>
+
+    <script type="module">
+        import { createApp, ref } from '/src/wrium.js';
+        import { SiteHeader } from './shared/site-header.js';
+        import { SiteFooter } from './shared/site-footer.js';
+
+        createApp(() => ({ count: ref(0) }))
+            .component('site-header', SiteHeader)
+            .component('site-footer', SiteFooter)
+            .mount('#app');
+    </script>
+</body>
+</html>
