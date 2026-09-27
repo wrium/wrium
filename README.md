@@ -404,8 +404,8 @@ createApp(() => ({ /* ... */ }))
 **`v-html`** — sets `innerHTML` directly. Left out of core because it's an XSS risk if bound to untrusted content; install it explicitly when you need it:
 
 ```js
-import { createApp } from './wrium.js';
-import { HtmlPlugin } from './plugins/html.js';
+import { createApp, ref } from 'wrium';
+import { HtmlPlugin } from 'wrium/plugins/html.js';
 
 createApp(() => ({ htmlContent: ref('<b>Bold</b>') }))
     .use(HtmlPlugin)
@@ -419,7 +419,8 @@ createApp(() => ({ htmlContent: ref('<b>Bold</b>') }))
 **`v-password-strength`** — flags weak/common passwords as you type (`src/plugins/password-strength.js`). Blocks an exact/substring match against a common-password list, sequential runs (`abc`, `123`), and repeated characters; scores character-class variety for the rest. `v-password-strength="someRef"` must point at a `ref()` - it writes `{ label, valid, reasons }` into it on every input.
 
 ```js
-import { PasswordStrengthPlugin } from './plugins/password-strength.js';
+import { createApp, ref } from 'wrium';
+import { PasswordStrengthPlugin } from 'wrium/plugins/password-strength.js';
 
 createApp(() => ({ password: ref(''), strength: ref(null) }))
     .use(PasswordStrengthPlugin, { minLength: 10, minScore: 'good' }) // label thresholds: weak < fair < good < strong
@@ -437,7 +438,8 @@ createApp(() => ({ password: ref(''), strength: ref(null) }))
 **`v-draggable`** — makes an element draggable with the mouse, touch, or pen, via a single Pointer Events code path (`src/plugins/draggable.js`). `v-draggable="position"` must point at a `ref({ x, y })`: dragging writes the new coordinates into it, and setting `position.value` from application code moves the element too, since one `watchEffect` drives the on-screen position either way. Movement is automatically clamped so the element can't leave its offset parent (which is given `position: absolute` automatically if it has no `position` set).
 
 ```js
-import { DraggablePlugin } from './plugins/draggable.js';
+import { createApp, ref } from 'wrium';
+import { DraggablePlugin } from 'wrium/plugins/draggable.js';
 
 createApp(() => ({ position: ref({ x: 0, y: 0 }) }))
     .use(DraggablePlugin)
