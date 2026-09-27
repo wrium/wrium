@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wrium E2E: Todo App</title>
+<style>
+    body { font-family: system-ui, sans-serif; background: #f4f5f7; margin: 0; padding: 40px 16px; }
+    .todo-app { max-width: 420px; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); overflow: hidden; }
+    header { padding: 16px 20px; border-bottom: 1px solid #eee; }
+    header h1 { font-size: 1.25rem; margin: 0 0 12px; }
+    header input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: .95rem; }
+    .toggle-all { display: flex; align-items: center; gap: 8px; padding: 10px 20px; font-size: .85rem; color: #555; border-bottom: 1px solid #eee; }
+    .todo-list { list-style: none; margin: 0; padding: 0; }
+    .todo-list li { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid #f0f0f0; }
+    .todo-list li.completed label { text-decoration: line-through; color: #999; }
+    .todo-list li label { flex: 1; }
+    .todo-list li .destroy { border: none; background: none; color: #cc4444; cursor: pointer; font-size: 1rem; }
+    .edit-wrap { flex: 1; }
+    .edit-wrap input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #2f6fed; border-radius: 4px; }
+    footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; font-size: .8rem; color: #555; flex-wrap: wrap; gap: 8px; }
+    .filters { display: flex; gap: 4px; }
+    .filters button { border: 1px solid transparent; background: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: .8rem; }
+    .filters button.selected { border-color: #2f6fed; color: #2f6fed; }
+    .clear-completed { border: none; background: none; color: #555; cursor: pointer; text-decoration: underline; font-size: .8rem; }
+    .empty { text-align: center; color: #888; padding: 24px; }
+</style>
+</head>
+<body>
+    <div id="app" class="todo-app">
+        <header>
+            <h1>Todos</h1>
+            <input data-testid="new-todo-input" v-model="newTodo" @keyup.enter="addTodo" placeholder="What needs to be done?" />
+        </header>
+
+        <div v-if="todos.length > 0">
+            <label class="toggle-all">
+                <input type="checkbox" data-testid="toggle-all" :checked="allDone" @change="toggleAll" />
+                Mark all as complete
+            </label>
+
+            <ul class="todo-list">
+                <li v-for="todo in filteredTodos" :key="todo.id"
+                    :class="{ completed: todo.done }"
+                    :data-testid="'todo-' + todo.id">
+                    <div class="view" v-if="editingId !== todo.id" style="display:flex;align-items:center;gap:10px;flex:1">
+                        <input type="checkbox" :checked="todo.done" @change="toggleTodo(todo.id)" :data-testid="'toggle-' + todo.id" />
+                        <label @dblclick="startEdit(todo)" :data-testid="'label-' + todo.id">{{ todo.text }}</label>
+                        <button class="destroy" @click="removeTodo(todo.id)" :data-testid="'destroy-' + todo.id">×</button>
+                    </div>
+                    <div class="edit-wrap" v-else>
+                        <input v-model="editText"
+                               @keyup.enter="saveEdit(todo)"
+                               @keyup.escape="cancelEdit"
+                               @blur="saveEdit(todo)"
+                               :data-testid="'edit-' + todo.id" />
+                    </div>
+                </li>
+            </ul>
+
+            <footer>
+                <span data-testid="remaining-count">{{ remaining }} item(s) left</span>
+                <div class="filters">
+                    <button :class="{ selected: filter === 'all' }" @click="filter.value = 'all'" data-testid="filter-all">All</button>
+                    <button :class="{ selected: filter === 'active' }" @click="filter.value = 'active'" data-testid="filter-active">Active</button>
+                    <button :class="{ selected: filter === 'completed' }" @click="filter.value = 'completed'" data-testid="filter-completed">Completed</button>
+                </div>
+                <button class="clear-completed" v-if="hasCompleted" @click="clearCompleted" data-testid="clear-completed">Clear completed</button>
+            </footer>
+        </div>
+
+        <p class="empty" data-testid="empty-state" v-if="todos.length === 0">No todos yet. Add one above!</p>
+    </div>
+
+    <script type="module">
+        // Importing straight from source (not the built dist/) so this fixture
+        // always exercises the current code under test.
+        import { createApp, ref, reactive, computed } from '/src/wrium.js';
+
+        createApp(() => {
+            const todos = reactive([]);
+            let nextId = 1;
+            const newTodo = ref('');
+            const filter = ref('all'); // 'all' | 'active' | 'completed'
+            const editingId = ref(null);
+            const editText = ref('');
+            let ignoreNextBlur = false;
+
+            const filteredTodos = computed(() => {
+                if (filter.value === 'active') return todos.filter(t => !t.done);
+                if (filter.value === 'completed') return todos.filter(t => t.done);
+                return todos;
+            });
+            const remaining = computed(() => todos.filter(t => !t.done).length);
+            const allDone = computed(() => todos.length > 0 && todos.every(t => t.done));
+            const hasCompleted = computed(() => todos.some(t => t.done));
+
+            function addTodo() {
+                const text = newTodo.value.trim();
+                if (!text) return;
+                todos.push({ id: nextId++, text, done: false });
+                newTodo.value = '';
+            }
+
+            function removeTodo(id) {
+                const idx = todos.findIndex(t => t.id === id);
+                if (idx > -1) todos.splice(idx, 1);
+            }
+
+            function toggleTodo(id) {
+                const t = todos.find(t => t.id === id);
+                if (t) t.done = !t.done;
+            }
+
+            function toggleAll() {
+                const makeDone = !allDone.value;
+                todos.forEach(t => { t.done = makeDone; });
+            }
+
+            function clearCompleted() {
+                for (let i = todos.length - 1; i >= 0; i--) {
+                    if (todos[i].done) todos.splice(i, 1);
+                }
+            }
+
+            function startEdit(todo) {
+                editingId.value = todo.id;
+                editText.value = todo.text;
+            }
+
+            function saveEdit(todo) {
+                if (ignoreNextBlur) { ignoreNextBlur = false; return; }
+                if (editingId.value !== todo.id) return; // already saved/cancelled
+                const text = editText.value.trim();
+                if (!text) {
+                    removeTodo(todo.id);
+                } else {
+                    todo.text = text;
+                }
+                editingId.value = null;
+            }
+
+            function cancelEdit() {
+                ignoreNextBlur = true;
+                editingId.value = null;
+            }
+
+            return {
+                todos, newTodo, filter, editingId, editText,
+                filteredTodos, remaining, allDone, hasCompleted,
+                addTodo, removeTodo, toggleTodo, toggleAll, clearCompleted,
+                startEdit, saveEdit, cancelEdit
+            };
+        }).mount('#app');
+    </script>
+</body>
+</html>
