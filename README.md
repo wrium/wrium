@@ -11,7 +11,7 @@ Wrium is a minimalist JavaScript library for building reactive user interfaces. 
 * **Reactive primitives**: `ref` (any value), `reactive` (objects/arrays), `computed`
 * **Effects**: `watchEffect` with automatic dependency tracking
 * **Lightweight template compiler** for declarative DOM binding and interpolation (`{{ }}`)
-* **Template directives**: `v-if`, `v-for`, `v-text`, `v-show`, `v-model`, `v-on` (shorthand `@`), `v-bind` (shorthand `:`)
+* **Template directives**: `v-if`, `v-for`, `v-text`, `v-show`, `v-model`, `v-pre`, `v-on` (shorthand `@`), `v-bind` (shorthand `:`)
 * **Event modifiers**: `.prevent`, `.stop`, `.once`, `.self`, `.capture`, `.passive`, and key modifiers like `.enter`
 * **Directive registry + plugin architecture**: built-in directives are registered the same way plugins register their own (e.g. `v-html` ships as an opt-in plugin, not core)
 * **Components**: `app.component(name, { template, setup })`, used as a custom tag with reactive props
@@ -168,6 +168,12 @@ Text nodes containing `{{ expression }}` are automatically reactive:
 <p>Hello, {{ name }}!</p>
 <p>You have {{ items.length }} items.</p>
 <p>Total: {{ price * quantity }}</p>
+```
+
+**`v-pre`**: skip compiling an element and its entire subtree - takes priority over every other directive on the same element. Useful for showing literal `{{ }}` syntax (e.g. in docs) or embedding a third-party widget's markup untouched:
+
+```html
+<code v-pre>{{ this is never evaluated }}</code>
 ```
 
 ---
@@ -489,6 +495,7 @@ createApp(() => {
 | Directive | Example |
 |-----------|---------|
 | `{{ expr }}` | `<p>{{ message }}</p>` |
+| `v-pre` | `<code v-pre>{{ literal }}</code>` |
 | `v-if` / `v-else-if` / `v-else` | `<div v-if="show">Text</div>` |
 | `v-for` | `<li v-for="item in items" :key="item.id">` |
 | `v-model` | `<input v-model="value" />` |
@@ -512,7 +519,7 @@ Requires ES6 Proxy support:
 
 ## Bundle Size
 
-- **~10.8KB** minified (ES build), zero dependencies, no build step required
+- **~10.9KB** minified (ES build), zero dependencies, no build step required
 - `v-html` and any other plugin-provided directives are not counted here - they're opt-in, shipped separately from core (see [Optional Plugins](#optional-plugins))
 - Type declarations (`dist/types/`) are generated at build time and add nothing to the runtime bundle
 
