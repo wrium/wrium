@@ -52,9 +52,10 @@ cover everything that changed on the way here.
   zero dependencies) and `DraggablePlugin` (`v-draggable`, Pointer Events so
   one code path covers mouse/touch/pen).
 - **Real-browser test coverage** (`npm run test:e2e`, Playwright/Chromium):
-  three example apps under `e2e/fixtures/` (a signup form, a Todo app, and
-  the draggable demo) with 30 passing tests, on top of the 189 jsdom-based
-  unit tests.
+  four example apps under `e2e/fixtures/` (a signup form, a Todo app, the
+  draggable demo, and a two-page docs-site demo covering `app.component()`
+  reused across pages and `v-pre`) with 37 passing tests, on top of the 203
+  jsdom-based unit tests.
 - **Component system**: `app.component(name, { template, setup })`, used as
   a custom tag (`<todo-item :text="t.text">`). Every attribute becomes a
   prop (kebab-case camelCased, `:attr` ones kept reactively in sync); the
