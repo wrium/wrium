@@ -26,8 +26,12 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/wrium.js'),
       name: 'Wrium',
-      formats: ['es','umd', 'iife'],
-      fileName: () => 'wrium.[format].js'
+      formats: ['es', 'umd', 'iife'],
+      // The package sets "type": "module", so a plain .js file is always
+      // treated as ESM regardless of format - the UMD build needs the
+      // unambiguous .cjs extension or require() silently loads the wrong
+      // branch of its own UMD wrapper.
+      fileName: (format) => format === 'umd' ? 'wrium.umd.cjs' : `wrium.${format}.js`
     },
   },
 });
