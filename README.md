@@ -17,6 +17,7 @@ Wrium is a minimalist JavaScript library for building reactive user interfaces. 
 * **App lifecycle**: `createApp(...).mount(selector)` and `.unmount()`
 * **Hook System**: Extend and customize behavior with lifecycle hooks
 * **Async effect queue**: Batched updates with effect sorting for optimal performance
+* **TypeScript declarations** generated from source, with proper generics (`ref<T>`, `computed<T>`, ...)
 
 ---
 
@@ -34,7 +35,7 @@ npm install wrium
 <script type="module">
   import { createApp, ref } from 'wrium.js';
   // or from a CDN (replace with the actual CDN URL once published)
-  import { createApp, ref } from 'https://cdn.example.com/wrium/0.4.7/wrium.js';
+  import { createApp, ref } from 'https://cdn.example.com/wrium/1.0.0/wrium.js';
 </script>
 ```
 
@@ -145,6 +146,17 @@ count.value++; // Logs: "Count is: 1"
 stop(); // Stop watching
 ```
 
+#### `nextTick(fn)`
+
+Runs `fn` after the DOM has been updated with the latest reactive changes (effects are batched and flushed on a microtask).
+
+```js
+count.value++;
+nextTick(() => {
+    console.log(document.querySelector('#count').textContent); // already updated
+});
+```
+
 ---
 
 ### Template Interpolation
@@ -191,8 +203,9 @@ Text nodes containing `{{ expression }}` are automatically reactive:
 ```
 
 **v-for behavior:**
-- Object items are reactive (direct property access)
-- Primitive items are ref-wrapped (auto-unwrapped in templates)
+- Object items are reactive (direct property access, and stay live when passed to a method: `@click="handleItem(item)"` receives the real reactive object)
+- Primitive items are ref-wrapped internally to stay live across re-renders, but you never see the box: reading them (`{{ item }}`), binding them (`:attr="item"`), and passing them to a method (`@click="handleItem(item)"`) all hand you the raw value
+- To mutate a primitive item, write to the source array by index (`items[index]++`), not the loop variable itself - same as Vue, a v-for primitive item isn't its own reactive cell
 - Index is a plain number that updates correctly when array changes
 - Always use `:key` with unique IDs for performance
 
@@ -442,6 +455,20 @@ createApp(() => {
 Requires ES6 Proxy support:
 - Chrome 49+, Firefox 18+, Safari 10+, Edge 12+
 - ❌ Internet Explorer
+
+---
+
+## Bundle Size
+
+- **~9.9KB** minified (ES build), zero dependencies, no build step required
+- `v-html` and any other plugin-provided directives are not counted here - they're opt-in, shipped separately from core (see [Optional Plugins](#optional-plugins))
+- Type declarations (`dist/types/`) are generated at build time and add nothing to the runtime bundle
+
+---
+
+## TypeScript
+
+`npm run build` also runs `build:types`, generating real `.d.ts` files from the source's JSDoc (`dist/types/wrium.d.ts`, wired up via `package.json`'s `exports.types`) - `ref`, `reactive`, `computed`, and `createApp` all carry proper generic signatures, so editors get real autocomplete without any hand-written type definitions.
 
 ---
 
