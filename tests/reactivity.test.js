@@ -503,6 +503,29 @@ describe('Reactivity System', () => {
     });
 });
 
+describe('nextTick()', () => {
+    it('returns a Promise', () => {
+        expect(nextTick(() => {})).toBeInstanceOf(Promise);
+    });
+
+    it('runs the callback after a pending reactive update has flushed', async () => {
+        const count = ref(0);
+        let effectRuns = 0;
+        watchEffect(() => { count.value; effectRuns++; });
+        expect(effectRuns).toBe(1); // initial synchronous run
+
+        count.value = 5; // queues a re-run on the microtask queue
+        let seenInsideCallback;
+        await nextTick(() => {
+            seenInsideCallback = effectRuns;
+        });
+        expect(seenInsideCallback).toBe(2); // the flush already happened by the time nextTick's callback runs
+    });
+
+    it('resolves even with no argument (usable as a bare await point)', async () => {
+        await expect(nextTick()).resolves.toBeUndefined();
+    });
+});
 
 describe('v-model with Radio Buttons', () => {
     it('should bind radio button value correctly', async () => {
