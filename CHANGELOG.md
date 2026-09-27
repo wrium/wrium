@@ -55,6 +55,15 @@ cover everything that changed on the way here.
   three example apps under `e2e/fixtures/` (a signup form, a Todo app, and
   the draggable demo) with 30 passing tests, on top of the 189 jsdom-based
   unit tests.
+- **Component system**: `app.component(name, { template, setup })`, used as
+  a custom tag (`<todo-item :text="t.text">`). Every attribute becomes a
+  prop (kebab-case camelCased, `:attr` ones kept reactively in sync); the
+  component's scope is isolated (unlike `v-if`/`v-for` branches, it does not
+  inherit the parent scope); no slots or a separate emit API in this first
+  version - a function-valued prop doubles as one. Composes with `v-for`
+  (each instance gets independent, correctly-scoped props) and cleans up
+  properly when its containing scope is destroyed. Adds ~0.56KB
+  (~9.9KB -> ~10.8KB, well inside the ≤15KB budget for this phase).
 
 ### Fixed
 
@@ -104,10 +113,15 @@ cover everything that changed on the way here.
 
 ### Known limitations (not yet addressed)
 
-- The directive registry and hook system are global/module-level singletons,
-  not scoped per `createApp()` instance - a plugin installed on one app is
-  visible to every app on the page. Now backed by a regression test
+- The directive registry, component registry, and hook system are all
+  global/module-level singletons, not scoped per `createApp()` instance - a
+  directive, component, or hook registered on one app is visible to every
+  app on the page. Now backed by a regression test
   (`tests/plugin-system.test.js`) rather than just asserted here.
+- The component system has no slots and no dedicated emit API - a
+  function-valued prop stands in for emit. Naming a `setup()` return value
+  the same as the prop it wraps recurses forever (see the Components
+  section of the README for why and the fix).
 - Reactive Map/Set are unsupported - `reactive()` has no special-casing for
   them (unlike Vue's), so calling their methods on a reactive-wrapped
   instance will likely throw.
