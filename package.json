@@ -4,15 +4,28 @@
   "description": "MiniVue: A minimal reactive framework inspired by Vue.js",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "src/plugins"
   ],
-  "main": "./dist/1.0.0/wrium.umd.js",
+  "main": "./dist/1.0.0/wrium.umd.cjs",
   "module": "./dist/1.0.0/wrium.es.js",
   "exports": {
     ".": {
       "types": "./dist/types/wrium.d.ts",
       "import": "./dist/1.0.0/wrium.es.js",
-      "require": "./dist/1.0.0/wrium.umd.js"
+      "require": "./dist/1.0.0/wrium.umd.cjs"
+    },
+    "./plugins/html.js": {
+      "types": "./dist/types/plugins/html.d.ts",
+      "import": "./src/plugins/html.js"
+    },
+    "./plugins/password-strength.js": {
+      "types": "./dist/types/plugins/password-strength.d.ts",
+      "import": "./src/plugins/password-strength.js"
+    },
+    "./plugins/draggable.js": {
+      "types": "./dist/types/plugins/draggable.d.ts",
+      "import": "./src/plugins/draggable.js"
     }
   },
   "repository": {
