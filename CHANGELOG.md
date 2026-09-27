@@ -42,6 +42,19 @@ cover everything that changed on the way here.
   `reactive`, `ref`, `computed`, `watchEffect` are the supported,
   semver-stable surface; `compile`, `Scope`, `evalExp` remain available for
   advanced plugins but mirror internals and aren't stability-guaranteed.
+- **Directive arguments and modifiers**: `v-tooltip:top.instant="x"` now
+  gives a custom directive handler `{ arg: 'top', modifiers: { instant: true } }`,
+  matching Vue's own custom-directive shape. Previously the entire string
+  after `v-` was used as a literal registry lookup key, so a directive
+  taking an argument had no way to be registered/found at all.
+- **Two real, standalone-ready plugins**: `PasswordStrengthPlugin`
+  (`v-password-strength`, pattern-based weak/common-password detection,
+  zero dependencies) and `DraggablePlugin` (`v-draggable`, Pointer Events so
+  one code path covers mouse/touch/pen).
+- **Real-browser test coverage** (`npm run test:e2e`, Playwright/Chromium):
+  three example apps under `e2e/fixtures/` (a signup form, a Todo app, and
+  the draggable demo) with 30 passing tests, on top of the 189 jsdom-based
+  unit tests.
 
 ### Fixed
 
@@ -73,6 +86,16 @@ cover everything that changed on the way here.
   config's `fileName` pattern always emits `wrium.es.js`/`wrium.umd.js`/
   `wrium.iife.js`. This had been broken since the very first `zog.js`
   release; `import 'wrium'` would 404.
+- **`v-if` combined with `v-for` on the same element used to leak**: toggling
+  the condition to true rendered the list correctly, but toggling back to
+  false did not remove it - `v-for` replaces its own template element with a
+  placeholder comment plus sibling clones that are no longer descendants of
+  that element, so `v-if`'s branch cleanup (which only removes that one
+  element) couldn't find the actual rendered nodes again. Now detected and
+  refused at compile time (reported through `onError`/`console.error`,
+  the element is left uncompiled) rather than silently half-working - see
+  "Don't combine v-if with v-for" under Conditional Rendering in the README
+  for the recommended alternatives.
 
 ### Removed
 
@@ -83,8 +106,11 @@ cover everything that changed on the way here.
 
 - The directive registry and hook system are global/module-level singletons,
   not scoped per `createApp()` instance - a plugin installed on one app is
-  visible to every app on the page.
-- No automated browser testing yet (test suite runs against jsdom only).
+  visible to every app on the page. Now backed by a regression test
+  (`tests/plugin-system.test.js`) rather than just asserted here.
+- Reactive Map/Set are unsupported - `reactive()` has no special-casing for
+  them (unlike Vue's), so calling their methods on a reactive-wrapped
+  instance will likely throw.
 - Putting a raw `ref()` directly inside a `reactive()`/plain array (e.g.
   `reactive([ref(1), ref(2)])`) and iterating it with `v-for` happens to
   render correctly today, but only as a side effect of how the internal
