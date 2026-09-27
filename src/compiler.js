@@ -105,6 +105,19 @@ export const compile = (el, scope, cs) => {
     // Each branch gets its own scope (created when shown, cleaned up when hidden)
     // -------------------------------------------------------------------------
     if (el.hasAttribute('v-if')) {
+        // v-if + v-for on the same element is a known footgun in Vue too
+        // (Essential-priority style guide rule there), but for us it's worse
+        // than "confusing": v-for replaces itself with sibling clones that
+        // aren't descendants of this element, so v-if's branch cleanup can't
+        // find and remove them again on toggle-off - the list leaks. Refuse
+        // to render rather than silently leak.
+        if (el.hasAttribute('v-for')) {
+            const msg = 'v-if and v-for cannot be used together on the same element - use a computed filtered list, or move v-if to a wrapping element instead.';
+            console.error?.(msg);
+            runHooks('onError', new Error(msg), 'compile', { el });
+            return;
+        }
+
         const branches = [];
         const parent = el.parentNode;
         if (!parent) return;
@@ -421,19 +434,26 @@ export const compile = (el, scope, cs) => {
         }
 
         // ---------------------------------------------------------------------
-        // NAMED DIRECTIVES: v-xxx (registry lookup)
+        // NAMED DIRECTIVES: v-xxx[:arg][.modifier...] (registry lookup)
         // ---------------------------------------------------------------------
         // v-model, v-show, v-text are built in (core-directives.js); anything
         // else (e.g. v-html) is only available if a plugin registered it via
         // api.directive(name, handler).
+        //
+        // Matches Vue's own custom-directive shape: v-tooltip:top.instant="x"
+        // gives the handler arg="top" and modifiers={instant:true} - the same
+        // dot-split idea @event.modifier already uses, just applied to the
+        // directive name too.
         // ---------------------------------------------------------------------
         else if (name.startsWith('v-')) {
-            const dirName = name.slice(2);
+            const [nameAndArg, ...modifierParts] = name.slice(2).split('.');
+            const [dirName, arg] = nameAndArg.split(':');
+            const modifiers = Object.fromEntries(modifierParts.map(m => [m, true]));
             el.removeAttribute(name);
 
             const handler = getDirective(dirName);
             if (handler) {
-                handler(el, value, { scope, cs, evalExp, watchEffect, ref, reactive });
+                handler(el, value, { scope, cs, evalExp, watchEffect, ref, reactive, arg, modifiers });
             } else {
                 console.error?.(`Unknown directive: v-${dirName}`);
                 runHooks('onError', new Error(`Unknown directive: v-${dirName}`), 'compile', { el, name });
