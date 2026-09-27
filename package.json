@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/wrium/wrium",
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@vitest/coverage-v8": "4.0.15",
     "@vitest/ui": "4.0.15",
     "jsdom": "^27.3.0",
@@ -34,7 +35,9 @@
     "build:types": "tsc -p tsconfig.json",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "keywords": [
     "wrium",
