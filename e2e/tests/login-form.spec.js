@@ -7,8 +7,8 @@ async function fillValid(page, overrides = {}) {
     const values = {
         name: 'Ada Lovelace',
         email: 'ada@example.com',
-        password: 'supersecret',
-        confirmPassword: 'supersecret',
+        password: 'K7$mQz9!vLp2',
+        confirmPassword: 'K7$mQz9!vLp2',
         country: 'de',
         ...overrides,
     };
@@ -61,15 +61,46 @@ test.describe('Signup form (v-model, computed validation, event modifiers)', () 
         await password.blur();
         await expect(page.getByTestId('password-error')).toHaveText('Password must be at least 8 characters');
 
-        await password.fill('longenough1');
+        await password.fill('K7$mQz9!vLp2');
         await expect(page.getByTestId('password-error')).toHaveCount(0);
 
         await confirm.fill('doesNotMatch');
         await confirm.blur();
         await expect(page.getByTestId('confirm-error')).toHaveText('Passwords do not match');
 
-        await confirm.fill('longenough1');
+        await confirm.fill('K7$mQz9!vLp2');
         await expect(page.getByTestId('confirm-error')).toHaveCount(0);
+    });
+
+    test.describe('Password strength plugin (v-password-strength)', () => {
+        test('shows no strength label while the field is empty', async ({ page }) => {
+            await expect(page.getByTestId('password-strength-label')).toHaveCount(0);
+        });
+
+        test('flags a common password as weak and blocks submission', async ({ page }) => {
+            await fillValid(page, { password: '123456', confirmPassword: '123456' });
+
+            const label = page.getByTestId('password-strength-label');
+            await expect(label).toHaveText('Strength: weak');
+            await expect(label).toHaveClass(/weak/);
+
+            await page.getByTestId('submit-button').click();
+            await expect(page.getByTestId('password-error')).toBeVisible();
+            await expect(page.getByTestId('success-message')).toHaveCount(0);
+        });
+
+        test('updates the label reactively as the password improves, and unblocks submission', async ({ page }) => {
+            const password = page.getByTestId('password-input');
+            const label = page.getByTestId('password-strength-label');
+
+            await password.fill('123456');
+            await expect(label).toHaveText('Strength: weak');
+
+            await password.fill('K7$mQz9!vLp2');
+            await expect(label).toHaveText('Strength: strong');
+            await password.blur();
+            await expect(page.getByTestId('password-error')).toHaveCount(0);
+        });
     });
 
     test('v-model works for select and checkbox, not just text inputs', async ({ page }) => {
