@@ -1,0 +1,96 @@
+/* Minimal, light theme shared by every page of this demo site. */
+:root {
+    --bg: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #666666;
+    --border: #e5e5e5;
+    --accent: #3457d5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.6;
+}
+
+/* Styled by tag name, not a class - a component tag's own attributes all
+   become props (see shared/site-header.js), so a "class" attribute on
+   <site-header> would be consumed as a prop, not a real DOM class. */
+site-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+}
+
+site-header .logo {
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-decoration: none;
+    color: var(--ink);
+}
+
+site-header nav {
+    display: flex;
+    gap: 20px;
+}
+
+site-header nav a {
+    text-decoration: none;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    padding-bottom: 2px;
+}
+
+site-header nav a.active {
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+}
+
+main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px;
+}
+
+main h1 { font-size: 2rem; margin-bottom: 8px; }
+main .tagline { color: var(--ink-soft); margin-top: 0; }
+
+.counter-demo {
+    margin: 32px 0;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+.counter-demo button {
+    padding: 6px 14px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+pre.code-sample {
+    background: #f6f7f9;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+}
+
+site-footer {
+    display: block;
+    border-top: 1px solid var(--border);
+    padding: 20px 32px;
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+    text-align: center;
+}
