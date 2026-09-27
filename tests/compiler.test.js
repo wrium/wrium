@@ -384,6 +384,100 @@ describe('Compiler and Directives', () => {
             app.mount(container);
             expect(container.querySelectorAll('div').length).toBe(0);
         });
+
+        it('should support a v-for nested inside another v-for', () => {
+            container.innerHTML = `
+                <div v-for="group in groups" :key="group.id">
+                    <span v-for="item in group.items" :key="item">{{ item }}</span>
+                </div>
+            `;
+            const app = createApp(() => ({
+                groups: reactive([
+                    { id: 1, items: ['a', 'b'] },
+                    { id: 2, items: ['c'] }
+                ])
+            }));
+            app.mount(container);
+            const spans = container.querySelectorAll('span');
+            expect([...spans].map(s => s.textContent)).toEqual(['a', 'b', 'c']);
+        });
+
+        it('should reactively update the inner v-for when a nested array changes', async () => {
+            container.innerHTML = `
+                <div v-for="group in groups" :key="group.id">
+                    <span v-for="item in group.items" :key="item">{{ item }}</span>
+                </div>
+            `;
+            let groups;
+            const app = createApp(() => {
+                groups = reactive([{ id: 1, items: ['a'] }]);
+                return { groups };
+            });
+            app.mount(container);
+            groups[0].items.push('b');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(container.querySelectorAll('span').length).toBe(2);
+        });
+    });
+
+    describe('v-if combined with v-for on the same element (undocumented combination)', () => {
+        // Compile order checks v-if first; the branch it clones still carries
+        // the v-for attribute (only the v-if-family attribute is stripped
+        // before cloning), so the shown branch is then re-compiled and hits
+        // the v-for path normally. This test exists to pin down and protect
+        // that actual behavior - not to declare it "correct" or supported.
+        it('renders the v-for list when the v-if condition is true', () => {
+            container.innerHTML = '<li v-if="show" v-for="item in items">{{ item }}</li>';
+            const app = createApp(() => ({
+                show: ref(true),
+                items: reactive(['a', 'b'])
+            }));
+            app.mount(container);
+            expect([...container.querySelectorAll('li')].map(li => li.textContent)).toEqual(['a', 'b']);
+        });
+
+        it('renders nothing when the v-if condition is false', () => {
+            container.innerHTML = '<li v-if="show" v-for="item in items">{{ item }}</li>';
+            const app = createApp(() => ({
+                show: ref(false),
+                items: reactive(['a', 'b'])
+            }));
+            app.mount(container);
+            expect(container.querySelectorAll('li').length).toBe(0);
+        });
+
+        // CONFIRMED BUG, not just an unsupported edge case: toggling v-if back
+        // to false does NOT remove the rendered list. v-for replaces its own
+        // template element with a placeholder comment + N sibling clones
+        // (none of which are descendants of that template element anymore),
+        // so when v-if's branch cleanup does `b.el?.remove()`, b.el is
+        // already an empty, detached husk - removing it removes nothing
+        // visible. Stopping the v-for effect (via b.scope.cleanup()) only
+        // stops it from reacting to *future* changes; it does not undo the
+        // DOM nodes the effect already inserted. Net effect: the list leaks
+        // and keeps reacting to `items` changes forever, orphaned from the
+        // v-if that thinks it deleted it.
+        it('BUG: toggling v-if back to false does not remove a v-for rendered under it', async () => {
+            container.innerHTML = '<li v-if="show" v-for="item in items">{{ item }}</li>';
+            let show;
+            const app = createApp(() => {
+                show = ref(false);
+                return { show, items: reactive(['a', 'b']) };
+            });
+            app.mount(container);
+            expect(container.querySelectorAll('li').length).toBe(0);
+
+            show.value = true;
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(container.querySelectorAll('li').length).toBe(2);
+
+            show.value = false;
+            await new Promise(resolve => setTimeout(resolve, 0));
+            // This SHOULD be 0. It is not. Documented here so a future fix
+            // has a test to flip red->green instead of discovering this by
+            // accident again.
+            expect(container.querySelectorAll('li').length).toBe(2);
+        });
     });
 
     describe('v-model directive', () => {
