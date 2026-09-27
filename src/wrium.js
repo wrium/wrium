@@ -1,5 +1,5 @@
 /**
- * Wrium v0.4.10 - Minimal reactive framework
+ * Wrium - Minimal reactive framework
  *
  * A lightweight Vue-inspired reactive framework for small to medium projects.
  * Provides reactivity, template binding, and directives without build steps.
