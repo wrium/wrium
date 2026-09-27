@@ -10,6 +10,7 @@
  *
  * Supported directives:
  * - {{ expression }}       - Text interpolation
+ * - v-pre                  - Skip compiling this element and its subtree
  * - v-if / v-else-if / v-else - Conditional rendering
  * - v-for="(item, index) in array" - List rendering
  * - v-model                - Two-way binding (registry)
@@ -99,6 +100,19 @@ export const compile = (el, scope, cs) => {
 
     // Only process element nodes
     if (el.nodeType !== 1) return;
+
+    // -------------------------------------------------------------------------
+    // V-PRE - Skip compiling this element and its entire subtree
+    // -------------------------------------------------------------------------
+    // Takes priority over everything else, including other directives on the
+    // same element - matches Vue. Useful for showing literal {{ }} syntax
+    // (e.g. in docs) or embedding a third-party widget's markup untouched.
+    // -------------------------------------------------------------------------
+    if (el.hasAttribute('v-pre')) {
+        el.removeAttribute('v-pre');
+        runHooks('afterCompile', el, scope, cs);
+        return;
+    }
 
     // -------------------------------------------------------------------------
     // V-IF - Conditional rendering
