@@ -1,5 +1,5 @@
 {
-  "name": "wrium",
+  "name": "@wrium/wrium",
   "version": "1.0.0",
   "description": "A minimalist reactive UI library with declarative templates and zero build step.",
   "type": "module",
