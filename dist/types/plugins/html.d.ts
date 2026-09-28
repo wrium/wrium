@@ -6,8 +6,8 @@
  * shipped.
  *
  * @example
- * import { createApp } from 'wrium';
- * import { HtmlPlugin } from 'wrium/plugins/html';
+ * import { createApp } from '@wrium/wrium';
+ * import { HtmlPlugin } from '@wrium/wrium/plugins/html';
  *
  * createApp(() => ({ ... })).use(HtmlPlugin).mount('#app');
  *
