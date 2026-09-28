@@ -12,6 +12,16 @@ cover everything that changed on the way here.
 
 ### Changed
 
+- **Published as `@wrium/wrium`, not the unscoped `wrium`**: the unscoped
+  name was blocked by npm's registry-side anti-squatting check
+  ("Package name too similar to existing package") on the very first
+  publish attempt, for a reason npm doesn't disclose - the exact name
+  `wrium` isn't taken and doesn't appear in search. Since the `wrium` npm
+  organization was already ours, publishing under its scope was the only
+  path that's actually guaranteed to work (scoped packages aren't subject
+  to that check). `npm install wrium` may become possible later if the
+  block is ever lifted; until then, install and import as
+  `@wrium/wrium`.
 - **Renamed from Zog.js to Wrium**: package name (`zogjs` → `wrium`),
   directive prefix (`z-` → `v-`), entry file (`src/zog.js` → `src/wrium.js`).
 - **`ref()` now accepts any value**, matching Vue: objects/arrays are
