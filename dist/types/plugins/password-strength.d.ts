@@ -6,8 +6,8 @@
  * lifted into its own standalone package/repo later without changes.
  *
  * @example
- * import { createApp } from 'wrium';
- * import { PasswordStrengthPlugin } from 'wrium/plugins/password-strength';
+ * import { createApp } from '@wrium/wrium';
+ * import { PasswordStrengthPlugin } from '@wrium/wrium/plugins/password-strength';
  *
  * createApp(() => {
  *     const strength = ref(null);
