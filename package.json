@@ -1,7 +1,7 @@
 {
   "name": "wrium",
   "version": "1.0.0",
-  "description": "MiniVue: A minimal reactive framework inspired by Vue.js",
+  "description": "A minimalist reactive UI library with declarative templates and zero build step.",
   "type": "module",
   "files": [
     "dist",
@@ -9,6 +9,9 @@
   ],
   "main": "./dist/1.0.0/wrium.umd.cjs",
   "module": "./dist/1.0.0/wrium.es.js",
+  "types": "./dist/types/wrium.d.ts",
+  "unpkg": "./dist/1.0.0/wrium.iife.js",
+  "jsdelivr": "./dist/1.0.0/wrium.iife.js",
   "exports": {
     ".": {
       "types": "./dist/types/wrium.d.ts",
