@@ -10,8 +10,8 @@
  * covers both "drag with the mouse" and "drag with a finger".
  *
  * @example
- * import { createApp, ref } from 'wrium';
- * import { DraggablePlugin } from 'wrium/plugins/draggable';
+ * import { createApp, ref } from '@wrium/wrium';
+ * import { DraggablePlugin } from '@wrium/wrium/plugins/draggable';
  *
  * createApp(() => ({ position: ref({ x: 0, y: 0 }) }))
  *     .use(DraggablePlugin)
