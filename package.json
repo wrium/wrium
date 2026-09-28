@@ -1,41 +1,59 @@
 {
-  "name": "zogjs",
-  "version": "0.4.9",
+  "name": "wrium",
+  "version": "1.0.0",
   "description": "MiniVue: A minimal reactive framework inspired by Vue.js",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "src/plugins"
   ],
-  "main": "./dist/0.4.9/zog.js",
-  "module": "./dist/0.4.9/zog.js",
+  "main": "./dist/1.0.0/wrium.umd.cjs",
+  "module": "./dist/1.0.0/wrium.es.js",
   "exports": {
     ".": {
-      "import": "./dist/0.4.9/zog.js",
-      "types": "./dist/0.4.9/zog.d.ts"
+      "types": "./dist/types/wrium.d.ts",
+      "import": "./dist/1.0.0/wrium.es.js",
+      "require": "./dist/1.0.0/wrium.umd.cjs"
+    },
+    "./plugins/html.js": {
+      "types": "./dist/types/plugins/html.d.ts",
+      "import": "./src/plugins/html.js"
+    },
+    "./plugins/password-strength.js": {
+      "types": "./dist/types/plugins/password-strength.d.ts",
+      "import": "./src/plugins/password-strength.js"
+    },
+    "./plugins/draggable.js": {
+      "types": "./dist/types/plugins/draggable.d.ts",
+      "import": "./src/plugins/draggable.js"
     }
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/zogjs/zogjs.git"
+    "url": "https://github.com/wrium/wrium.git"
   },
-  "homepage": "https://zogjs.com",
+  "homepage": "https://github.com/wrium/wrium",
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@vitest/coverage-v8": "4.0.15",
     "@vitest/ui": "4.0.15",
     "jsdom": "^27.3.0",
     "terser": "^5.44.1",
+    "typescript": "^7.0.2",
     "vite": "^7.2.4"
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm run build:types",
+    "build:types": "tsc -p tsconfig.json",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "keywords": [
-    "zogjs",
-    "zog.js",
+    "wrium",
     "reactivity",
     "minimal-js",
     "javascript-reactive"

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { createApp, ref, reactive, computed, watchEffect, nextTick } from '../src/zog.js';
+import { createApp, ref, reactive, computed, watchEffect, nextTick } from '../src/wrium.js';
 
 describe('Edge Cases and Bug Detection', () => {
     let dom;
@@ -21,10 +21,10 @@ describe('Edge Cases and Bug Detection', () => {
         }
     });
 
-    describe('z-for with Reactive Objects (Main Bug Fix)', () => {
-        it('should allow user.age++ directly in z-for with reactive array', async () => {
+    describe('v-for with Reactive Objects (Main Bug Fix)', () => {
+        it('should allow user.age++ directly in v-for with reactive array', async () => {
             container.innerHTML = `
-                <div z-for="user in users" :key="user.id">
+                <div v-for="user in users" :key="user.id">
                     <span class="name">{{ user.name }}</span>
                     <span class="age">{{ user.age }}</span>
                     <button @click="user.age++">Birthday</button>
@@ -54,9 +54,9 @@ describe('Edge Cases and Bug Detection', () => {
             expect(container.querySelectorAll('.age')[0].textContent).toBe('21');
         });
 
-        it('should NOT require user.value.age in z-for', () => {
+        it('should NOT require user.value.age in v-for', () => {
             container.innerHTML = `
-                <div z-for="user in users">
+                <div v-for="user in users">
                     <button @click="user.age++">{{ user.age }}</button>
                 </div>
             `;
@@ -71,9 +71,9 @@ describe('Edge Cases and Bug Detection', () => {
             expect(() => button.click()).not.toThrow();
         });
 
-        it('should work with method calls on reactive objects in z-for', () => {
+        it('should work with method calls on reactive objects in v-for', () => {
             container.innerHTML = `
-                <div z-for="(user, index) in users" :key="user.id">
+                <div v-for="(user, index) in users" :key="user.id">
                     <button @click="incrementAge(user, index)">Increment</button>
                 </div>
             `;
@@ -97,10 +97,10 @@ describe('Edge Cases and Bug Detection', () => {
         });
     });
 
-    describe('z-for Index Access (Potential Bug)', () => {
+    describe('v-for Index Access (Potential Bug)', () => {
         it('should provide index as accessible value', () => {
             container.innerHTML = `
-                <div z-for="(item, index) in items">
+                <div v-for="(item, index) in items">
                     <span class="index">{{ index }}</span>
                     <span class="item">{{ item }}</span>
                 </div>
@@ -119,7 +119,7 @@ describe('Edge Cases and Bug Detection', () => {
 
         it('should update index when array changes', async () => {
             container.innerHTML = `
-                <div z-for="(item, index) in items">{{ index }}: {{ item }}</div>
+                <div v-for="(item, index) in items">{{ index }}: {{ item }}</div>
             `;
             let items;
             const app = createApp(() => {
@@ -139,7 +139,7 @@ describe('Edge Cases and Bug Detection', () => {
 
         it('should pass correct index to functions', () => {
             container.innerHTML = `
-                <div z-for="(item, index) in items">
+                <div v-for="(item, index) in items">
                     <button @click="logIndex(index)">Log</button>
                 </div>
             `;
@@ -164,10 +164,10 @@ describe('Edge Cases and Bug Detection', () => {
         });
     });
 
-    describe('z-for with Primitive Arrays', () => {
+    describe('v-for with Primitive Arrays', () => {
         it('should work with array of numbers', async () => {
             container.innerHTML = `
-                <div z-for="num in numbers">{{ num }}</div>
+                <div v-for="num in numbers">{{ num }}</div>
             `;
             let numbers;
             const app = createApp(() => {
@@ -181,11 +181,17 @@ describe('Edge Cases and Bug Detection', () => {
             expect(divs[0].textContent).toBe('1');
         });
 
-        it('should handle incrementing primitive values in z-for', async () => {
+        it('should update the source array when incrementing a primitive v-for item by index (Vue-style)', async () => {
+            // v-for primitive items are a transient per-render box (needed so
+            // the binding stays live across re-renders) - they were never
+            // meaningfully mutable through the item variable itself, since
+            // that never wrote back to the source array (matches Vue: a
+            // v-for item isn't its own reactive cell, the source array is).
+            // The correct pattern is to mutate the source array by index.
             container.innerHTML = `
-                <div z-for="num in numbers">
+                <div v-for="(num, index) in numbers">
                     <span>{{ num }}</span>
-                    <button @click="num.value++">++</button>
+                    <button @click="numbers[index]++">++</button>
                 </div>
             `;
             let numbers;
@@ -197,47 +203,60 @@ describe('Edge Cases and Bug Detection', () => {
 
             const button = container.querySelector('button');
             const span = container.querySelector('span');
-            
+
             expect(span.textContent).toBe('1');
             button.click();
             await new Promise(resolve => setTimeout(resolve, 0));
-            
-            // For primitive values, we need .value
+
             expect(span.textContent).toBe('2');
+            expect(numbers[0]).toBe(2);
+        });
+
+        it('should pass a v-for primitive item to a function as its raw value, not a ref box', () => {
+            container.innerHTML = `
+                <div v-for="num in numbers">
+                    <button @click="record(num)">{{ num }}</button>
+                </div>
+            `;
+            const received = [];
+            const app = createApp(() => ({
+                numbers: reactive([1, 2, 3]),
+                record: v => received.push(v)
+            }));
+            app.mount(container);
+            container.querySelectorAll('button').forEach(b => b.click());
+            expect(received).toEqual([1, 2, 3]);
         });
     });
 
-    describe('ref with Objects/Arrays (Should Throw)', () => {
-        it('should throw when creating ref with object', () => {
-            expect(() => {
-                ref({ name: 'test' });
-            }).toThrow('ref() cannot be used with objects or arrays');
+    describe('ref with Objects/Arrays (Vue-parity)', () => {
+        it('should transparently wrap an object with reactive()', () => {
+            const user = ref({ name: 'test' });
+            expect(user.value.name).toBe('test');
         });
 
-        it('should throw when creating ref with array', () => {
-            expect(() => {
-                ref([1, 2, 3]);
-            }).toThrow('ref() cannot be used with objects or arrays');
+        it('should transparently wrap an array with reactive()', () => {
+            const list = ref([1, 2, 3]);
+            expect(Array.isArray(list.value)).toBe(true);
+            expect(list.value[0]).toBe(1);
         });
 
-        it('should throw when setting ref value to object', () => {
+        it('should re-wrap when .value is set to a new object', () => {
             const count = ref(0);
-            expect(() => {
-                count.value = { x: 1 };
-            }).toThrow();
+            count.value = { x: 1 };
+            expect(count.value.x).toBe(1);
         });
 
-        it('should throw when setting ref value to array', () => {
+        it('should re-wrap when .value is set to a new array', () => {
             const count = ref(0);
-            expect(() => {
-                count.value = [1, 2, 3];
-            }).toThrow();
+            count.value = [1, 2, 3];
+            expect(count.value).toEqual([1, 2, 3]);
         });
 
-        it('should warn before throwing', () => {
+        it('should not throw or warn for object/array values', () => {
             const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-            expect(() => ref({ x: 1 })).toThrow();
-            expect(warnSpy).toHaveBeenCalled();
+            expect(() => ref({ x: 1 })).not.toThrow();
+            expect(warnSpy).not.toHaveBeenCalled();
             warnSpy.mockRestore();
         });
     });
@@ -245,7 +264,7 @@ describe('Edge Cases and Bug Detection', () => {
     describe('Memory Leaks and Cleanup', () => {
         it('should cleanup effects when scope is destroyed', async () => {
             container.innerHTML = `
-                <div z-if="show">
+                <div v-if="show">
                     <div>{{ message }}</div>
                 </div>
             `;
@@ -297,9 +316,9 @@ describe('Edge Cases and Bug Detection', () => {
             expect(count.value).toBe(1); // Should not increment after unmount
         });
 
-        it('should cleanup z-for items when array becomes empty', async () => {
+        it('should cleanup v-for items when array becomes empty', async () => {
             container.innerHTML = `
-                <div z-for="item in items">{{ item }}</div>
+                <div v-for="item in items">{{ item }}</div>
             `;
             let items;
             const app = createApp(() => {
@@ -399,7 +418,7 @@ describe('Edge Cases and Bug Detection', () => {
 
         it('should handle large arrays efficiently', async () => {
             container.innerHTML = `
-                <div z-for="item in items">{{ item }}</div>
+                <div v-for="item in items">{{ item }}</div>
             `;
             let items;
             const app = createApp(() => {

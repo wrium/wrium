@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wrium E2E: Draggable</title>
+<style>
+    body { font-family: system-ui, sans-serif; background: #f4f5f7; margin: 0; padding: 40px 16px; }
+    .panel { max-width: 420px; margin: 0 auto; }
+    .coords { font-size: .9rem; color: #333; margin: 0 0 12px; font-variant-numeric: tabular-nums; }
+    .box { position: relative; width: 360px; height: 260px; max-width: 100%; background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+    .square { width: 60px; height: 60px; background: #2f6fed; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: .7rem; user-select: none; }
+    .reset-button { margin-top: 12px; padding: 6px 14px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+    <div class="panel" id="app">
+        <p class="coords" data-testid="coords">x: {{ position.x }}, y: {{ position.y }}</p>
+        <div class="box" data-testid="box">
+            <div class="square" data-testid="square" v-draggable="position">Drag me</div>
+        </div>
+        <button class="reset-button" data-testid="reset-button" @click="reset">Reset to center</button>
+    </div>
+
+    <script type="module">
+        // Importing straight from source (not the built dist/) so this fixture
+        // always exercises the current code under test.
+        import { createApp, ref } from '/src/wrium.js';
+        import { DraggablePlugin } from '/src/plugins/draggable.js';
+
+        const START = { x: 150, y: 100 };
+
+        createApp(() => {
+            const position = ref({ ...START });
+            function reset() {
+                position.value = { ...START };
+            }
+            return { position, reset };
+        })
+            .use(DraggablePlugin)
+            .mount('#app');
+    </script>
+</body>
+</html>

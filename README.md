@@ -1,21 +1,24 @@
-# Zog.js
+# Wrium
 
 **Full reactivity with minimal code size.**
 
-Zog.js is a minimalist JavaScript library for building reactive user interfaces. It allows you to write clean, declarative templates directly in your HTML and power them with a simple, yet powerful, reactivity system. Inspired by the best parts of modern frameworks, Zog.js offers an intuitive developer experience with zero dependencies and no build step required.
+Wrium is a minimalist JavaScript library for building reactive user interfaces. It allows you to write clean, declarative templates directly in your HTML and power them with a simple, yet powerful, reactivity system. Inspired by the best parts of modern frameworks, Wrium offers an intuitive developer experience with zero dependencies and no build step required.
 
 ---
 
 ## Highlights
 
-* **Reactive primitives**: `ref` (primitives only), `reactive` (objects/arrays), `computed`
+* **Reactive primitives**: `ref` (any value), `reactive` (objects/arrays), `computed`
 * **Effects**: `watchEffect` with automatic dependency tracking
 * **Lightweight template compiler** for declarative DOM binding and interpolation (`{{ }}`)
-* **Template directives**: `z-if`, `z-for`, `z-text`, `z-html`, `z-show`, `z-model`, `z-on` (shorthand `@`)
+* **Template directives**: `v-if`, `v-for`, `v-text`, `v-show`, `v-model`, `v-pre`, `v-on` (shorthand `@`), `v-bind` (shorthand `:`)
+* **Event modifiers**: `.prevent`, `.stop`, `.once`, `.self`, `.capture`, `.passive`, and key modifiers like `.enter`
+* **Directive registry + plugin architecture**: built-in directives are registered the same way plugins register their own (e.g. `v-html` ships as an opt-in plugin, not core)
+* **Components**: `app.component(name, { template, setup })`, used as a custom tag with reactive props
 * **App lifecycle**: `createApp(...).mount(selector)` and `.unmount()`
 * **Hook System**: Extend and customize behavior with lifecycle hooks
-* **Plugin architecture**: `app.use(plugin, options)` for modular extensions
 * **Async effect queue**: Batched updates with effect sorting for optimal performance
+* **TypeScript declarations** generated from source, with proper generics (`ref<T>`, `computed<T>`, ...)
 
 ---
 
@@ -24,16 +27,14 @@ Zog.js is a minimalist JavaScript library for building reactive user interfaces.
 ### Via npm
 
 ```bash
-npm install zogjs
+npm install wrium
 ```
 
 ### Direct ES Module
 
 ```html
 <script type="module">
-  import { createApp, ref } from 'zog.js';
-  // or from CDN
-  import { createApp, ref } from 'https://cdn.zogjs.com/0.4.7/zog.js';
+  import { createApp, ref } from './node_modules/wrium/dist/1.0.0/wrium.es.js';
 </script>
 ```
 
@@ -47,7 +48,7 @@ npm install zogjs
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Zog.js Counter</title>
+    <title>Wrium Counter</title>
 </head>
 <body>
     <div id="app">
@@ -58,7 +59,7 @@ npm install zogjs
     </div>
 
     <script type="module">
-        import { createApp, ref } from './zog.js';
+        import { createApp, ref } from './wrium.js';
 
         createApp(() => {
             const title = ref('Counter App');
@@ -80,36 +81,29 @@ npm install zogjs
 
 ### Reactivity Primitives
 
-#### `ref(primitive)` — For primitive values only
+#### `ref(value)` — A reactive box around any value
 
-Creates a reactive reference for **strings, numbers, and booleans only**.
+Creates a reactive reference. Primitives (string, number, boolean) are tracked directly; objects and arrays are transparently handed to `reactive()`.
 
 ```js
 const count = ref(0);
 count.value++; // Triggers reactive updates
 
-// In templates, .value is automatically unwrapped:
-// {{ count }} instead of {{ count.value }}
-```
-
-**⚠️ Important (v0.4.7):** `ref()` throws an error if passed an object or array. Use `reactive()` instead.
-
-```js
-// ❌ WRONG - throws error
 const user = ref({ name: 'John' });
+user.value.name = 'Jane'; // Reactive, same as reactive({ name: 'John' })
 
-// ✅ CORRECT
-const user = reactive({ name: 'John' });
+// In templates, .value is automatically unwrapped:
+// {{ count }} / {{ user.name }} instead of {{ count.value }} / {{ user.value.name }}
 ```
 
 #### `reactive(object)` — For objects and arrays
 
-Returns a deep reactive proxy of an object or array.
+Returns a deep reactive proxy of an object or array. This is what `ref()` uses internally for non-primitive values - reach for it directly when you don't need a separate box, just a reactive object.
 
 ```js
 const state = reactive({
     user: { name: 'John', age: 30 },
-    todos: ['Learn Zog.js']
+    todos: ['Learn Wrium']
 });
 
 // All nested properties are reactive
@@ -151,6 +145,17 @@ count.value++; // Logs: "Count is: 1"
 stop(); // Stop watching
 ```
 
+#### `nextTick(fn)`
+
+Runs `fn` after the DOM has been updated with the latest reactive changes (effects are batched and flushed on a microtask).
+
+```js
+count.value++;
+nextTick(() => {
+    console.log(document.querySelector('#count').textContent); // already updated
+});
+```
+
 ---
 
 ### Template Interpolation
@@ -163,96 +168,175 @@ Text nodes containing `{{ expression }}` are automatically reactive:
 <p>Total: {{ price * quantity }}</p>
 ```
 
+**`v-pre`**: skip compiling an element and its entire subtree - takes priority over every other directive on the same element. Useful for showing literal `{{ }}` syntax (e.g. in docs) or embedding a third-party widget's markup untouched:
+
+```html
+<code v-pre>{{ this is never evaluated }}</code>
+```
+
 ---
 
 ### Template Directives
 
 #### Conditional Rendering
 
-**`z-if`**, **`z-else-if`**, **`z-else`**: Conditionally render elements.
+**`v-if`**, **`v-else-if`**, **`v-else`**: Conditionally render elements.
 
 ```html
-<div z-if="score >= 90">Excellent!</div>
-<div z-else-if="score >= 70">Good job!</div>
-<div z-else>Keep trying!</div>
+<div v-if="score >= 90">Excellent!</div>
+<div v-else-if="score >= 70">Good job!</div>
+<div v-else>Keep trying!</div>
+```
+
+**Don't combine `v-if` with `v-for` on the same element** - it's rejected at compile time (reported via the `onError` hook and `console.error`, the element is left uncompiled). Use a computed filtered list, or move `v-if` to a wrapping element, instead:
+
+```html
+<!-- Don't -->
+<li v-if="show" v-for="item in items">{{ item }}</li>
+
+<!-- Do: move v-if to a real wrapping element (there's no <template> support,
+     so it has to be an actual rendering element, e.g. the containing <ul>) -->
+<ul v-if="show">
+    <li v-for="item in items">{{ item }}</li>
+</ul>
+
+<!-- or filter the source instead of the render -->
+<li v-for="item in visibleItems">{{ item }}</li>
 ```
 
 #### List Rendering
 
-**`z-for`**: Repeat elements for each item in an array.
+**`v-for`**: Repeat elements for each item in an array.
 
 ```html
 <!-- Simple iteration -->
-<li z-for="item in items">{{ item }}</li>
+<li v-for="item in items">{{ item }}</li>
 
 <!-- With index -->
-<li z-for="(item, index) in items">
+<li v-for="(item, index) in items">
     {{ index + 1 }}. {{ item.name }}
 </li>
 
 <!-- With key (recommended) -->
-<li z-for="item in items" :key="item.id">
+<li v-for="item in items" :key="item.id">
     {{ item.name }}
 </li>
 ```
 
-**z-for behavior (v0.4.7):**
-- Object items are reactive (direct property access)
-- Primitive items are ref-wrapped (auto-unwrapped in templates)
+**v-for behavior:**
+- Object items are reactive (direct property access, and stay live when passed to a method: `@click="handleItem(item)"` receives the real reactive object)
+- Primitive items are ref-wrapped internally to stay live across re-renders, but you never see the box: reading them (`{{ item }}`), binding them (`:attr="item"`), and passing them to a method (`@click="handleItem(item)"`) all hand you the raw value
+- To mutate a primitive item, write to the source array by index (`items[index]++`), not the loop variable itself - same as Vue, a v-for primitive item isn't its own reactive cell
 - Index is a plain number that updates correctly when array changes
 - Always use `:key` with unique IDs for performance
 
 #### Content Directives
 
 ```html
-<p z-text="message"></p>           <!-- Safe textContent -->
-<div z-html="htmlContent"></div>   <!-- innerHTML (⚠️ XSS risk) -->
-<div z-show="isVisible">...</div>  <!-- Toggle display -->
+<p v-text="message"></p>          <!-- Safe textContent -->
+<div v-show="isVisible">...</div> <!-- Toggle display -->
 ```
+
+`v-html` (raw innerHTML) is intentionally **not** part of the core - see [Optional Plugins](#optional-plugins) below.
 
 #### Two-Way Binding
 
-**`z-model`**: Bind form inputs bidirectionally.
+**`v-model`**: Bind form inputs bidirectionally.
 
 ```html
-<input z-model="username" />
-<textarea z-model="bio"></textarea>
-<input type="checkbox" z-model="agreed" />
-<input type="radio" z-model="color" value="red" />
-<select z-model="country">
+<input v-model="username" />
+<textarea v-model="bio"></textarea>
+<input type="checkbox" v-model="agreed" />
+<input type="radio" v-model="color" value="red" />
+<select v-model="country">
     <option value="us">United States</option>
 </select>
 ```
 
 #### Event Handling
 
-**`@event`** or **`z-on:event`**: Attach event listeners.
+**`@event`** or **`v-on:event`**: Attach event listeners.
 
 ```html
 <!-- Method handler (recommended) -->
 <button @click="handleClick">Click me</button>
 
-<!-- Inline expression (need .value for refs) -->
+<!-- Inline expression -->
 <button @click="count.value++">Increment</button>
+<button @click="user.name = 'Jane'">Rename</button>
+```
+
+**On `.value` in inline expressions:** you only need `.value` to *reassign* a
+primitive ref itself (`count.value++`, `count.value = 5`) - a bare number
+can't carry the write back to the ref. Reading or mutating the *contents* of
+a ref never needs `.value`, including for object refs in event handlers
+(`user.name = 'Jane'` works directly when `user = ref({ name: 'John' })`,
+since the object is shared by reference).
+
+**Event modifiers** — chain one or more with dots:
+
+```html
+<form @submit.prevent="save">...</form>          <!-- e.preventDefault() -->
+<button @click.stop="onClick">...</button>       <!-- e.stopPropagation() -->
+<button @click.once="init">...</button>          <!-- listener fires once -->
+<div @click.self="onDivClick">...</div>          <!-- ignores bubbled child clicks -->
+<button @click.capture="onClick">...</button>    <!-- listen during capture phase -->
+<div @scroll.passive="onScroll">...</div>        <!-- passive listener -->
+```
+
+**Key modifiers** — any modifier that isn't one of the above is matched against `e.key` (case-insensitive):
+
+```html
+<input @keyup.enter="submit" />
+<input @keyup.escape="cancel" />
+<div @keydown.arrowdown="moveDown"></div>
 ```
 
 #### Attribute Binding
 
-**`:attribute`**: Dynamically bind any attribute.
+**`:attribute`** or **`v-bind:attribute`**: Dynamically bind any attribute.
 
 ```html
 <img :src="imageUrl" :alt="imageAlt" />
 <button :disabled="isDisabled">Submit</button>
 <div :class="{ active: isActive, error: hasError }">Content</div>
+<div :class="[baseClass, { active: isActive }]">Content</div>  <!-- array syntax -->
 <div :style="{ color: textColor, fontSize: size + 'px' }">Text</div>
 ```
+
+---
+
+## Components
+
+`app.component(name, { template, setup })` registers a reusable, named unit under a kebab-case tag name. Used in markup as a custom tag:
+
+```js
+app.component('todo-item', {
+    template: '<li :class="{ done }">{{ text }} <button @click="handleToggle">✓</button></li>',
+    setup(props) {
+        return { handleToggle: () => props.onToggle?.() };
+    }
+});
+```
+
+```html
+<todo-item v-for="t in todos" :key="t.id" :text="t.text" :done="t.done" :on-toggle="() => toggle(t.id)"></todo-item>
+```
+
+**How props work:** every attribute on the tag becomes a prop - `:attr` ones stay reactively in sync with the parent, plain ones are static strings. Kebab-case names are camelCased (`:on-toggle` → `props.onToggle`), same as Vue. Props are already the component's scope, so a plain passthrough prop (`text`, `done` above) needs no `setup()` at all - only add `setup()` to compute additional state or wrap a callback.
+
+**The component's scope is isolated** - unlike `v-if`/`v-for` branches, it does *not* inherit the parent's scope. Only props (and whatever `setup()` returns) are visible in its template.
+
+**No slots or a separate emit API** in this minimal version - a function-valued prop doubles as an emit: the child just calls `props.onToggle?.()`, the parent passes `:on-toggle="() => toggle(t.id)"`.
+
+**Footgun to avoid:** don't name a value returned from `setup()` the same as an incoming prop it wraps (e.g. `setup(props) { return { onClick: () => props.onClick() } }`). `props` is the live, shared scope object - that assignment overwrites the incoming callback with a reference to itself, and calling it recurses forever. Name the wrapper differently (`handleClick`, not `onClick`).
 
 ---
 
 ## Hook System
 
 ```js
-import { onHook } from './zog.js';
+import { onHook } from './wrium.js';
 
 // Available hooks: beforeCompile, afterCompile, onError
 onHook('beforeCompile', (el, scope, cs) => {
@@ -268,6 +352,8 @@ onHook('onError', (error, context, details) => {
 
 ## Plugin System
 
+Plugins can hook into compilation (`onHook`) and, more powerfully, **register their own `v-xxx` directives** through the same registry that `v-model`/`v-show`/`v-text` use internally - there is no special privilege for built-ins.
+
 ### Creating a Plugin
 
 ```js
@@ -275,23 +361,37 @@ onHook('onError', (error, context, details) => {
 export const MyPlugin = {
     install(api, options) {
         // api contains: app, reactive, ref, computed, watchEffect,
-        //               onHook, compile, Scope, evalExp
-        
+        //               onHook, directive, compile, Scope, evalExp
+
+        // Register a new v-xxx directive
+        api.directive('focus', (el, exp, ctx) => {
+            setTimeout(() => el.focus(), 0);
+        });
+
+        // Directives can take an argument and modifiers too, same shape as
+        // Vue's: v-tooltip:top.instant="text" -> arg: 'top', modifiers: { instant: true }
+        api.directive('tooltip', (el, exp, { scope, evalExp, arg, modifiers }) => {
+            const position = arg || 'bottom';
+            const delay = modifiers.instant ? 0 : 300;
+            // ...
+        });
+
+        // Or hook into the compile pass directly
         api.onHook('beforeCompile', (el, scope, cs) => {
-            // Custom directive example
-            if (el.hasAttribute('z-focus')) {
-                el.removeAttribute('z-focus');
-                setTimeout(() => el.focus(), 0);
-            }
+            // ...
         });
     }
 };
 ```
 
+A directive handler receives `(el, expression, ctx)`, where `ctx` is `{ scope, cs, evalExp, watchEffect, ref, reactive, arg, modifiers }` - everything needed to set up a reactive effect or listener, plus `arg` (the string after `:`, or `undefined`) and `modifiers` (an object with each dot-suffix as a truthy key, e.g. `.foo.bar` -> `{ foo: true, bar: true }`). Register cleanup through `cs` (`cs.addEffect(...)` / `cs.addListener(...)`) so it's automatically torn down when the element is removed.
+
+**API stability (v1):** `app`, `directive`, `onHook`, `reactive`, `ref`, `computed`, `watchEffect` are the supported plugin surface and follow semver - build against these. `compile`, `Scope`, `evalExp` are also passed through for advanced cases (e.g. compiling a dynamically-created subtree), but they mirror the compiler's internals directly and can change without a major version bump.
+
 ### Using Plugins
 
 ```js
-import { createApp } from './zog.js';
+import { createApp } from './wrium.js';
 import { MyPlugin } from './my-plugin.js';
 
 createApp(() => ({ /* ... */ }))
@@ -299,17 +399,73 @@ createApp(() => ({ /* ... */ }))
     .mount('#app');
 ```
 
+### Optional Plugins
+
+**`v-html`** — sets `innerHTML` directly. Left out of core because it's an XSS risk if bound to untrusted content; install it explicitly when you need it:
+
+```js
+import { createApp, ref } from 'wrium';
+import { HtmlPlugin } from 'wrium/plugins/html.js';
+
+createApp(() => ({ htmlContent: ref('<b>Bold</b>') }))
+    .use(HtmlPlugin)
+    .mount('#app');
+```
+
+```html
+<div v-html="htmlContent"></div>
+```
+
+**`v-password-strength`** — flags weak/common passwords as you type (`src/plugins/password-strength.js`). Blocks an exact/substring match against a common-password list, sequential runs (`abc`, `123`), and repeated characters; scores character-class variety for the rest. `v-password-strength="someRef"` must point at a `ref()` - it writes `{ label, valid, reasons }` into it on every input.
+
+```js
+import { createApp, ref } from 'wrium';
+import { PasswordStrengthPlugin } from 'wrium/plugins/password-strength.js';
+
+createApp(() => ({ password: ref(''), strength: ref(null) }))
+    .use(PasswordStrengthPlugin, { minLength: 10, minScore: 'good' }) // label thresholds: weak < fair < good < strong
+    .mount('#app');
+```
+
+```html
+<input type="password" v-model="password" v-password-strength="strength" />
+<p>Strength: {{ strength?.label }}</p>
+<button :disabled="!strength?.valid">Submit</button>
+```
+
+`assessPassword(password, options)` is also exported directly as a pure function, for validating the same way outside a template (e.g. before a submit that also hits a server).
+
+**`v-draggable`** — makes an element draggable with the mouse, touch, or pen, via a single Pointer Events code path (`src/plugins/draggable.js`). `v-draggable="position"` must point at a `ref({ x, y })`: dragging writes the new coordinates into it, and setting `position.value` from application code moves the element too, since one `watchEffect` drives the on-screen position either way. Movement is automatically clamped so the element can't leave its offset parent (which is given `position: absolute` automatically if it has no `position` set).
+
+```js
+import { createApp, ref } from 'wrium';
+import { DraggablePlugin } from 'wrium/plugins/draggable.js';
+
+createApp(() => ({ position: ref({ x: 0, y: 0 }) }))
+    .use(DraggablePlugin)
+    .mount('#app');
+```
+
+```html
+<div class="box" style="position: relative">
+    <div v-draggable="position">Drag me</div>
+</div>
+<p>{{ position.x }}, {{ position.y }}</p>
+```
+
+Using an unregistered `v-xxx` directive (forgetting to install its plugin) reports an error through `onHook('onError', ...)` and logs to the console - it never fails silently.
+
 ---
 
 ## Complete Example: Todo List
 
 ```html
 <div id="app">
-    <input z-model="newTodo" @keyup.enter="addTodo" placeholder="Add todo" />
+    <input v-model="newTodo" @keyup.enter="addTodo" placeholder="Add todo" />
     <button @click="addTodo">Add</button>
 
     <ul>
-        <li z-for="(todo, index) in todos" :key="todo.id">
+        <li v-for="(todo, index) in todos" :key="todo.id">
             <input type="checkbox" 
                    :checked="todo.done" 
                    @change="toggleTodo(todo.id)" />
@@ -320,12 +476,12 @@ createApp(() => ({ /* ... */ }))
         </li>
     </ul>
     
-    <p z-show="todos.length === 0">No todos yet!</p>
+    <p v-show="todos.length === 0">No todos yet!</p>
     <p>{{ remaining }} of {{ todos.length }} remaining</p>
 </div>
 
 <script type="module">
-import { createApp, ref, reactive, computed } from './zog.js';
+import { createApp, ref, reactive, computed } from './wrium.js';
 
 createApp(() => {
     const newTodo = ref('');
@@ -361,11 +517,11 @@ createApp(() => {
 
 | Function | Description |
 |----------|-------------|
-| `ref(primitive)` | Reactive reference for primitives only |
+| `ref(value)` | Reactive box around any value (objects/arrays use `reactive()` internally) |
 | `reactive(object)` | Deep reactive proxy for objects/arrays |
 | `computed(getter)` | Cached computed value |
 | `watchEffect(fn, opts?)` | Auto-tracking reactive effect |
-| `createApp(setup)` | Create app with `.mount()`, `.unmount()`, `.use()` |
+| `createApp(setup)` | Create app with `.mount()`, `.unmount()`, `.use()`, `.component()` |
 | `nextTick(fn)` | Execute after DOM update |
 | `onHook(name, fn)` | Register lifecycle hook |
 
@@ -374,14 +530,16 @@ createApp(() => {
 | Directive | Example |
 |-----------|---------|
 | `{{ expr }}` | `<p>{{ message }}</p>` |
-| `z-if` / `z-else-if` / `z-else` | `<div z-if="show">Text</div>` |
-| `z-for` | `<li z-for="item in items" :key="item.id">` |
-| `z-model` | `<input z-model="value" />` |
-| `z-show` | `<div z-show="visible">` |
-| `z-text` / `z-html` | `<p z-text="msg"></p>` |
-| `@event` | `<button @click="handler">` |
-| `:attr` | `<img :src="url" />` |
-| `:class` | `<div :class="{ active: isActive }">` |
+| `v-pre` | `<code v-pre>{{ literal }}</code>` |
+| `v-if` / `v-else-if` / `v-else` | `<div v-if="show">Text</div>` |
+| `v-for` | `<li v-for="item in items" :key="item.id">` |
+| `v-model` | `<input v-model="value" />` |
+| `v-show` | `<div v-show="visible">` |
+| `v-text` | `<p v-text="msg"></p>` |
+| `v-html` *(plugin)* | `<div v-html="raw">` — requires `HtmlPlugin` |
+| `@event` / `v-on:event` | `<button @click="handler">`, `<button @click.prevent.stop="h">` |
+| `:attr` / `v-bind:attr` | `<img :src="url" />` |
+| `:class` | `<div :class="{ active: isActive }">`, `<div :class="[base, { active }]">` |
 | `:style` | `<div :style="{ color: c }">` |
 
 ---
@@ -396,58 +554,48 @@ Requires ES6 Proxy support:
 
 ## Bundle Size
 
-- **~5KB** minified
-- **Zero dependencies**
-- **No build step required**
+- **~10.9KB** minified (ES build), zero dependencies, no build step required
+- `v-html` and any other plugin-provided directives are not counted here - they're opt-in, shipped separately from core (see [Optional Plugins](#optional-plugins))
+- Type declarations (`dist/types/`) are generated at build time and add nothing to the runtime bundle
 
 ---
 
-## Changelog
+## TypeScript
 
-### v0.4.7 (Current)
-
-- ✅ Added comprehensive code documentation
-- ✅ Removed unused code
-
-### v0.4.6
-
-**Breaking Changes:**
-- ⚠️ `ref()` now only accepts primitive values (string, number, boolean)
-- ⚠️ Use `reactive()` for objects and arrays
-
-**Bug Fixes:**
-- 🐛 Fixed z-for index reactivity (index now updates correctly when array changes)
-- 🐛 Restored effect sorting by ID for correct execution order
-- 🐛 Added expression cache limit (500) to prevent memory leaks
-
-**Improvements:**
-- ✨ Plugin API now receives full access: `reactive`, `ref`, `computed`, `watchEffect`, `onHook`, `compile`, `Scope`, `evalExp`
-- ✨ Cleaner separation between `ref` (primitives) and `reactive` (objects)
-- ✨ Improved Scope management with parent-child relationships
-
-### v0.3.2
-
-- ✨ Added Hook System (`beforeCompile`, `afterCompile`, `beforeEffect`, `onError`)
-- ✨ Plugin API with access to hooks and utilities
-- 🚀 Optimized effect queue management
+`npm run build` also runs `build:types`, generating real `.d.ts` files from the source's JSDoc (`dist/types/wrium.d.ts`, wired up via `package.json`'s `exports.types`) - `ref`, `reactive`, `computed`, and `createApp` all carry proper generic signatures, so editors get real autocomplete without any hand-written type definitions.
 
 ---
 
-## Migration from v0.3.x to v0.4.x
+## Development
 
-**Breaking Change:** `ref()` no longer accepts objects/arrays.
-
-```js
-// Before (v0.3.x)
-const user = ref({ name: 'John' });
-user.value.name = 'Jane';
-
-// After (v0.4.x)
-const user = reactive({ name: 'John' });
-user.name = 'Jane';
+```bash
+npm test              # unit tests (Vitest + jsdom), 203 tests
+npm run test:e2e      # end-to-end tests (Playwright, real Chromium), 37 tests
+npm run test:e2e:ui   # same, with Playwright's interactive UI
+npm run build         # bundle + generate .d.ts
 ```
 
+E2E tests run against real example pages under `e2e/fixtures/` (a signup
+form, a Todo app, a draggable demo, and a two-page component-reuse demo) -
+`npm run dev` serves the same fixtures if you want to click through one
+yourself.
+
 ---
+
+## Project Status
+
+Wrium (formerly Zog.js) is preparing its v1.0.0 release - see
+[CHANGELOG.md](./CHANGELOG.md) for everything that changed on the way here.
+Known limitations still open:
+
+- The directive registry, component registry, and hook system are global/
+  module-level, not scoped per `createApp()` instance.
+- No slots or a dedicated emit API for components - a function-valued prop
+  stands in for emit (see [Components](#components) above).
+- `reactive()` has no special-casing for `Map`/`Set` - calling their methods
+  on a reactive-wrapped instance will likely throw.
+- A raw `ref()` placed directly inside a `reactive()` array works today only
+  as a side effect of internal unwrapping, not a deliberately tested path.
 
 ## License
 

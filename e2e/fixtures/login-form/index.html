@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wrium E2E: Signup Form</title>
+<style>
+    body { font-family: system-ui, sans-serif; background: #f4f5f7; margin: 0; padding: 40px 16px; }
+    form { max-width: 360px; margin: 0 auto; background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    h1 { font-size: 1.25rem; margin: 0 0 20px; }
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: .875rem; margin-bottom: 4px; color: #333; }
+    input[type="text"], input[type="email"], input[type="password"], select {
+        width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: .95rem;
+    }
+    input.invalid, select.invalid { border-color: #d33; }
+    .checkbox-field label { display: flex; align-items: center; gap: 8px; font-size: .875rem; }
+    .checkbox-field input { width: auto; }
+    .error { color: #d33; font-size: .8rem; margin: 4px 0 0; }
+    .strength { font-size: .8rem; margin: 4px 0 0; }
+    .strength.weak { color: #d33; }
+    .strength.fair { color: #b8860b; }
+    .strength.good { color: #2f7d32; }
+    .strength.strong { color: #1a7f37; }
+    .success { color: #1a7f37; font-size: .9rem; margin-top: 12px; }
+    .server-error { color: #d33; font-size: .9rem; margin-top: 12px; }
+    button { width: 100%; padding: 10px; border: none; border-radius: 4px; background: #2f6fed; color: #fff; font-size: .95rem; cursor: pointer; }
+    button:disabled { background: #9db4e8; cursor: not-allowed; }
+</style>
+</head>
+<body>
+    <form id="signup-form" novalidate @submit.prevent="handleSubmit">
+        <h1>Create account</h1>
+
+        <div class="field">
+            <label for="name">Name</label>
+            <input id="name" type="text" data-testid="name-input"
+                   v-model="form.name" @blur="markTouched('name')"
+                   :class="{ invalid: touched.name && errors.name }" />
+            <p class="error" data-testid="name-error" v-if="touched.name && errors.name">{{ errors.name }}</p>
+        </div>
+
+        <div class="field">
+            <label for="email">Email</label>
+            <input id="email" type="email" data-testid="email-input"
+                   v-model="form.email" @blur="markTouched('email')"
+                   :class="{ invalid: touched.email && errors.email }" />
+            <p class="error" data-testid="email-error" v-if="touched.email && errors.email">{{ errors.email }}</p>
+        </div>
+
+        <div class="field">
+            <label for="password">Password</label>
+            <input id="password" type="password" data-testid="password-input"
+                   v-model="form.password" @blur="markTouched('password')"
+                   v-password-strength="passwordStrength"
+                   :class="{ invalid: touched.password && errors.password }" />
+            <p class="strength" data-testid="password-strength-label"
+               v-if="form.password" :class="passwordStrength?.label">
+                Strength: {{ passwordStrength?.label }}
+            </p>
+            <p class="error" data-testid="password-error" v-if="touched.password && errors.password">{{ errors.password }}</p>
+        </div>
+
+        <div class="field">
+            <label for="confirmPassword">Confirm password</label>
+            <input id="confirmPassword" type="password" data-testid="confirm-input"
+                   v-model="form.confirmPassword" @blur="markTouched('confirmPassword')"
+                   :class="{ invalid: touched.confirmPassword && errors.confirmPassword }" />
+            <p class="error" data-testid="confirm-error" v-if="touched.confirmPassword && errors.confirmPassword">{{ errors.confirmPassword }}</p>
+        </div>
+
+        <div class="field">
+            <label for="country">Country</label>
+            <select id="country" data-testid="country-select"
+                    v-model="form.country" @blur="markTouched('country')" @change="markTouched('country')"
+                    :class="{ invalid: touched.country && errors.country }">
+                <option value="">Select a country</option>
+                <option value="de">Germany</option>
+                <option value="us">United States</option>
+            </select>
+            <p class="error" data-testid="country-error" v-if="touched.country && errors.country">{{ errors.country }}</p>
+        </div>
+
+        <div class="field checkbox-field">
+            <label>
+                <input type="checkbox" data-testid="agree-checkbox"
+                       v-model="form.agree" @change="markTouched('agree')" />
+                I agree to the terms
+            </label>
+            <p class="error" data-testid="agree-error" v-if="touched.agree && errors.agree">{{ errors.agree }}</p>
+        </div>
+
+        <button type="submit" data-testid="submit-button" :disabled="status === 'submitting'">
+            {{ status === 'submitting' ? 'Submitting...' : 'Create account' }}
+        </button>
+
+        <p class="success" data-testid="success-message" v-if="status === 'success'">Account created successfully!</p>
+        <p class="server-error" data-testid="server-error-message" v-if="status === 'error'">{{ serverError }}</p>
+    </form>
+
+    <script type="module">
+        // Importing straight from source (not the built dist/) so this fixture
+        // always exercises the current code under test. A real consumer would
+        // import from the published package or a CDN build instead.
+        import { createApp, ref, reactive, computed } from '/src/wrium.js';
+        import { PasswordStrengthPlugin } from '/src/plugins/password-strength.js';
+
+        const validators = {
+            name: v => !v.trim() ? 'Name is required'
+                : v.trim().length < 2 ? 'Name must be at least 2 characters'
+                : '',
+            email: v => !v.trim() ? 'Email is required'
+                : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Enter a valid email address'
+                : '',
+            password: v => !v ? 'Password is required'
+                : v.length < 8 ? 'Password must be at least 8 characters'
+                : '',
+            confirmPassword: (v, form) => !v ? 'Please confirm your password'
+                : v !== form.password ? 'Passwords do not match'
+                : '',
+            country: v => !v ? 'Please select a country' : '',
+            agree: v => !v ? 'You must agree to the terms' : ''
+        };
+
+        createApp(() => {
+            const form = reactive({
+                name: '', email: '', password: '', confirmPassword: '',
+                country: '', agree: false
+            });
+            const touched = reactive({
+                name: false, email: false, password: false,
+                confirmPassword: false, country: false, agree: false
+            });
+            const status = ref('idle'); // idle | submitting | success | error
+            const serverError = ref('');
+            const passwordStrength = ref(null);
+
+            const errors = computed(() => ({
+                name: validators.name(form.name),
+                email: validators.email(form.email),
+                password: validators.password(form.password)
+                    || (passwordStrength.value && !passwordStrength.value.valid
+                        ? (passwordStrength.value.reasons[0] || 'Password is too weak')
+                        : ''),
+                confirmPassword: validators.confirmPassword(form.confirmPassword, form),
+                country: validators.country(form.country),
+                agree: validators.agree(form.agree)
+            }));
+
+            const isValid = computed(() => Object.values(errors.value).every(e => !e));
+
+            function markTouched(field) {
+                touched[field] = true;
+            }
+
+            function markAllTouched() {
+                Object.keys(touched).forEach(k => { touched[k] = true; });
+            }
+
+            async function handleSubmit(e) {
+                markAllTouched();
+                if (!isValid.value) return;
+
+                status.value = 'submitting';
+                serverError.value = '';
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                if (form.email === 'taken@example.com') {
+                    status.value = 'error';
+                    serverError.value = 'This email is already registered';
+                    return;
+                }
+
+                status.value = 'success';
+                form.name = '';
+                form.email = '';
+                form.password = '';
+                form.confirmPassword = '';
+                form.country = '';
+                form.agree = false;
+                Object.keys(touched).forEach(k => { touched[k] = false; });
+            }
+
+            return { form, touched, errors, status, serverError, passwordStrength, markTouched, handleSubmit };
+        })
+            .use(PasswordStrengthPlugin, { minLength: 8, minScore: 'fair' })
+            .mount('#signup-form');
+    </script>
+</body>
+</html>

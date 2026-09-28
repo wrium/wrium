@@ -1,0 +1,176 @@
+/**
+ * APPLICATION
+ * ===========
+ * createApp() creates an application instance that can be mounted to the DOM.
+ * Supports plugin system for extensibility.
+ */
+import { Scope, setCurrentScope } from './scope.js';
+import { compile } from './compiler.js';
+import { reactive } from './core/reactive.js';
+import { ref } from './core/ref.js';
+import { computed } from './core/computed.js';
+import { watchEffect } from './core/effect.js';
+import { onHook, runHooks } from './hooks.js';
+import { evalExp } from './expression.js';
+import { registerDirective } from './directives.js';
+import { registerComponent } from './components.js';
+
+/**
+ * @typedef {Object} WriumPlugin
+ * @property {(api: Object, options?: Object) => void} install
+ */
+
+/**
+ * @typedef {Object} ComponentDef
+ * @property {string} template - HTML string for the component's own subtree
+ * @property {(props: Object) => Object|void} [setup] - Receives the reactive
+ *   props object; whatever it returns is merged into the component's scope
+ */
+
+/**
+ * @typedef {Object} App
+ * @property {(plugin: WriumPlugin, options?: Object) => App} use - Install a plugin
+ * @property {(name: string, def: ComponentDef) => App} component - Register a reusable component under a tag name
+ * @property {(root: string | Element) => App} mount - Mount to a DOM element
+ * @property {() => void} unmount - Clean up all effects and listeners
+ */
+
+/**
+ * Create a Wrium application
+ *
+ * @param {() => Object} setup - Setup function that returns reactive data
+ * @returns {App} App instance with mount(), unmount(), and use() methods
+ *
+ * @example
+ * const app = createApp(() => ({
+ *   count: ref(0),
+ *   items: reactive([]),
+ *   increment() { this.count.value++ }
+ * }));
+ *
+ * app.use(myPlugin);
+ * app.mount('#app');
+ */
+export const createApp = setup => {
+    let rootScope = null;
+    const appContext = { plugins: new Set() };
+
+    return {
+        /**
+         * Install a plugin
+         *
+         * @param {Object} plugin - Plugin with install(api, options) method
+         * @param {Object} options - Options to pass to plugin
+         * @returns {Object} App instance for chaining
+         *
+         * @example
+         * const myPlugin = {
+         *   install(api, options) {
+         *     api.directive('html', (el, exp, { scope, cs, watchEffect, evalExp }) => {
+         *       cs.addEffect(watchEffect(() => { el.innerHTML = evalExp(exp, scope) ?? ''; }));
+         *     });
+         *   }
+         * };
+         * app.use(myPlugin, { debug: true });
+         */
+        use(plugin, options = {}) {
+            if (appContext.plugins.has(plugin)) return this;
+            if (typeof plugin.install !== 'function') {
+                console.error?.('Plugin must have install method');
+                return this;
+            }
+
+            // Provide API to plugin.
+            //
+            // Stability contract (v1): `app`, `directive`, `onHook`, `reactive`,
+            // `ref`, `computed`, `watchEffect` are the supported extension
+            // surface and follow semver.
+            //
+            // `compile`, `Scope`, `evalExp` are lower-level internals, exposed
+            // for advanced plugins that need to compile a dynamically-created
+            // subtree or manage their own child scopes (e.g. a portal/teleport
+            // plugin). They mirror the compiler's actual implementation and
+            // are NOT covered by the same stability guarantee - prefer
+            // `directive`/`onHook` when they're enough.
+            plugin.install({
+                app: this,
+                reactive, ref, computed, watchEffect,
+                onHook, directive: registerDirective,
+                compile, Scope, evalExp
+            }, options);
+
+            appContext.plugins.add(plugin);
+            return this;
+        },
+
+        /**
+         * Register a reusable component under a kebab-case tag name. Used in
+         * markup as a custom tag: `app.component('my-badge', {...})` is used
+         * as `<my-badge :label="text"></my-badge>`. The component's scope is
+         * isolated (it does not see the parent's scope) - only props (every
+         * attribute on the tag, kept reactive for `:attr` ones) and whatever
+         * setup() returns.
+         *
+         * @param {string} name - Tag name, e.g. 'my-badge'
+         * @param {ComponentDef} def - { template, setup? }
+         * @returns {App} App instance for chaining
+         *
+         * @example
+         * app.component('todo-item', {
+         *     template: '<li :class="{ done }">{{ text }} <button @click="onToggle">x</button></li>',
+         *     setup(props) {
+         *         return { text: props.text, done: props.done, onToggle: () => props.onToggle?.() };
+         *     }
+         * });
+         * // <todo-item :text="t.text" :done="t.done" :on-toggle="() => toggle(t.id)"></todo-item>
+         */
+        component(name, def) {
+            registerComponent(name, def);
+            return this;
+        },
+
+        /**
+         * Mount the app to a DOM element
+         *
+         * @param {string|Element} root - CSS selector or DOM element
+         * @returns {Object} App instance for chaining
+         *
+         * @example
+         * app.mount('#app');
+         * app.mount(document.getElementById('app'));
+         */
+        mount(root) {
+            const el = typeof root === 'string' ? document.querySelector(root) : root;
+            if (!el) {
+                console.error?.('Root not found:', root);
+                return;
+            }
+
+            // Create root scope
+            rootScope = new Scope({});
+            setCurrentScope(rootScope);
+
+            // Run setup function to get reactive data
+            rootScope.data = setup?.() || {};
+            setCurrentScope(null);
+
+            // Compile the root element
+            try {
+                compile(el, rootScope.data, rootScope);
+            } catch (err) {
+                console.error?.('Compile error:', err);
+                runHooks('onError', err, 'compile', { el });
+            }
+
+            return this;
+        },
+
+        /**
+         * Unmount the app and clean up all effects and listeners
+         */
+        unmount() {
+            rootScope?.cleanup();
+            rootScope = null;
+        }
+    };
+};

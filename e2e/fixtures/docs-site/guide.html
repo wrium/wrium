@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wrium E2E: Docs Site - Guide</title>
+<link rel="stylesheet" href="shared/theme.css">
+</head>
+<body>
+    <div id="app">
+    <site-header :current="'guide'"></site-header>
+
+    <main>
+        <h1>Guide</h1>
+        <p class="tagline">Everything you need to build your first Wrium app.</p>
+
+        <h2>Reactive state</h2>
+        <p>
+            Wrap a value in <code>ref()</code> to make it reactive, then read
+            and write it through <code>.value</code> from JavaScript. Inside a
+            template, Wrium unwraps it automatically.
+        </p>
+
+        <section class="counter-demo">
+            <p data-testid="todo-count">Items left: {{ items }}</p>
+            <button data-testid="add-item-button" @click="items.value++">Add item</button>
+        </section>
+
+        <h2>List rendering</h2>
+        <p>Use <code>v-for</code> to render a list from an array:</p>
+        <pre class="code-sample" data-testid="code-sample" v-pre>&lt;ul&gt;
+    &lt;li v-for="item in items" :key="item.id"&gt;{{ item.text }}&lt;/li&gt;
+&lt;/ul&gt;</pre>
+
+        <h2>Components</h2>
+        <p>
+            The header and footer on this very page are components, shared
+            with the home page and registered once via
+            <code>app.component()</code>.
+        </p>
+    </main>
+
+    <site-footer :version="'1.0.0'"></site-footer>
+    </div>
+
+    <script type="module">
+        import { createApp, ref } from '/src/wrium.js';
+        import { SiteHeader } from './shared/site-header.js';
+        import { SiteFooter } from './shared/site-footer.js';
+
+        createApp(() => ({ items: ref(3) }))
+            .component('site-header', SiteHeader)
+            .component('site-footer', SiteFooter)
+            .mount('#app');
+    </script>
+</body>
+</html>
