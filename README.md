@@ -1,6 +1,27 @@
-# Wrium
+<div align="center">
+  <a href="https://wrium.dev">
+    <img src="./assets/logo.png" width="128" height="128" alt="Wrium logo" />
+  </a>
 
-**Full reactivity with minimal code size.**
+  <h1>Wrium</h1>
+
+  <p><strong>Full reactivity with minimal code size.</strong></p>
+
+  <p>
+    <a href="https://wrium.dev">Website (wrium.dev)</a> •
+    <a href="https://wrium.dev/docs/introduction.html">Documentation</a> •
+    <a href="https://www.npmjs.com/package/@wrium/wrium">npm</a> •
+    <a href="https://github.com/wrium/wrium">GitHub</a>
+  </p>
+
+  <p>
+    <a href="https://www.npmjs.com/package/@wrium/wrium"><img src="https://img.shields.io/npm/v/@wrium/wrium.svg?color=38bdf8&label=npm" alt="npm version" /></a>
+    <a href="https://wrium.dev"><img src="https://img.shields.io/badge/bundle%20size-~10.9%20KB-10b981" alt="Bundle size" /></a>
+    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License" /></a>
+  </p>
+</div>
+
+---
 
 Wrium is a minimalist JavaScript library for building reactive user interfaces. It allows you to write clean, declarative templates directly in your HTML and power them with a simple, yet powerful, reactivity system. Inspired by the best parts of modern frameworks, Wrium offers an intuitive developer experience with zero dependencies and no build step required.
 
